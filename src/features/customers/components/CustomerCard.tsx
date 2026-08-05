@@ -2,24 +2,23 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { Avatar, Box, Card, CardContent, Chip, IconButton, Stack, Typography } from "@mui/material";
 import { getInitials } from "../../../utils/getInitials";
-import type { Employee } from "../types/employee.types";
-import { EmployeeServicesChips } from "./EmployeeServicesChips";
+import type { Customer } from "../types/customer.types";
 
-interface EmployeeCardProps {
-  employee: Employee;
-  onEdit: (employee: Employee) => void;
-  onDelete: (employee: Employee) => void;
+interface CustomerCardProps {
+  customer: Customer;
+  onEdit: (customer: Customer) => void;
+  onDelete: (customer: Customer) => void;
 }
 
-export function EmployeeCard({ employee, onEdit, onDelete }: EmployeeCardProps) {
-  const fullName = `${employee.firstName} ${employee.lastName}`;
+export function CustomerCard({ customer, onEdit, onDelete }: CustomerCardProps) {
+  const fullName = `${customer.firstName} ${customer.lastName}`;
 
   return (
     <Card component="li" variant="outlined" sx={{ borderRadius: 2, listStyle: "none" }}>
       <CardContent>
         <Stack direction="row" spacing={1.5} sx={{ alignItems: "flex-start" }}>
-          <Avatar sx={{ bgcolor: employee.color, width: 36, height: 36, fontSize: 14 }}>
-            {getInitials(employee.firstName, employee.lastName)}
+          <Avatar sx={{ width: 36, height: 36, fontSize: 14 }}>
+            {getInitials(customer.firstName, customer.lastName)}
           </Avatar>
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
             <Stack
@@ -31,30 +30,42 @@ export function EmployeeCard({ employee, onEdit, onDelete }: EmployeeCardProps) 
                 {fullName}
               </Typography>
               <Chip
-                label={employee.active ? "Activo" : "Inactivo"}
-                color={employee.active ? "success" : "default"}
+                label={customer.active ? "Activo" : "Inactivo"}
+                color={customer.active ? "success" : "default"}
                 size="small"
                 variant="outlined"
               />
             </Stack>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {employee.phone || "Sin teléfono"}
+              {customer.phone}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {employee.email || "Sin correo"}
+              {customer.email || "Sin correo"}
             </Typography>
-            <Box sx={{ mt: 1 }}>
-              <EmployeeServicesChips services={employee.services} max={3} />
-            </Box>
+            {customer.notes && (
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{
+                  mt: 1,
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}
+              >
+                {customer.notes}
+              </Typography>
+            )}
           </Box>
         </Stack>
         <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end", mt: 1.5 }}>
-          <IconButton aria-label={`Editar ${fullName}`} onClick={() => onEdit(employee)} size="small">
+          <IconButton aria-label={`Editar ${fullName}`} onClick={() => onEdit(customer)} size="small">
             <EditOutlinedIcon fontSize="small" />
           </IconButton>
           <IconButton
             aria-label={`Eliminar ${fullName}`}
-            onClick={() => onDelete(employee)}
+            onClick={() => onDelete(customer)}
             size="small"
           >
             <DeleteOutlineIcon fontSize="small" />

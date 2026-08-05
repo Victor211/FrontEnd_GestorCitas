@@ -15,83 +15,84 @@ import {
   Typography,
 } from "@mui/material";
 import { getInitials } from "../../../utils/getInitials";
-import type { Employee } from "../types/employee.types";
-import { EmployeeServicesChips } from "./EmployeeServicesChips";
+import type { Customer } from "../types/customer.types";
 
-interface EmployeesTableProps {
-  employees: Employee[];
-  onEdit: (employee: Employee) => void;
-  onDelete: (employee: Employee) => void;
+interface CustomersTableProps {
+  customers: Customer[];
+  onEdit: (customer: Customer) => void;
+  onDelete: (customer: Customer) => void;
 }
 
-export function EmployeesTable({ employees, onEdit, onDelete }: EmployeesTableProps) {
+export function CustomersTable({ customers, onEdit, onDelete }: CustomersTableProps) {
   return (
     <TableContainer sx={{ display: { xs: "none", md: "block" } }}>
-      <Table aria-label="Empleados">
+      <Table aria-label="Clientes">
         <TableHead>
           <TableRow>
-            <TableCell>Empleado</TableCell>
+            <TableCell>Cliente</TableCell>
             <TableCell>Teléfono</TableCell>
-            <TableCell>Email</TableCell>
-            <TableCell>Servicios</TableCell>
+            <TableCell>Correo</TableCell>
+            <TableCell>Notas</TableCell>
             <TableCell>Estado</TableCell>
             <TableCell align="right">Acciones</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {employees.map((employee) => {
-            const fullName = `${employee.firstName} ${employee.lastName}`;
+          {customers.map((customer) => {
+            const fullName = `${customer.firstName} ${customer.lastName}`;
             return (
-              <TableRow key={employee.id} hover>
+              <TableRow key={customer.id} hover>
                 <TableCell>
                   <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-                    <Avatar
-                      sx={{ bgcolor: employee.color, width: 32, height: 32, fontSize: 13 }}
-                    >
-                      {getInitials(employee.firstName, employee.lastName)}
+                    <Avatar sx={{ width: 32, height: 32, fontSize: 13 }}>
+                      {getInitials(customer.firstName, customer.lastName)}
                     </Avatar>
                     <Typography variant="body2">{fullName}</Typography>
                   </Stack>
                 </TableCell>
+                <TableCell>{customer.phone}</TableCell>
                 <TableCell>
-                  {employee.phone || (
-                    <Typography variant="body2" color="text.secondary" component="span">
-                      Sin teléfono
-                    </Typography>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {employee.email || (
+                  {customer.email || (
                     <Typography variant="body2" color="text.secondary" component="span">
                       Sin correo
                     </Typography>
                   )}
                 </TableCell>
-                <TableCell sx={{ maxWidth: 260 }}>
-                  <EmployeeServicesChips services={employee.services} />
+                <TableCell sx={{ maxWidth: 220 }}>
+                  {customer.notes ? (
+                    <Tooltip title={customer.notes}>
+                      <Typography variant="body2" color="text.secondary" noWrap>
+                        {customer.notes}
+                      </Typography>
+                    </Tooltip>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" component="span">
+                      —
+                    </Typography>
+                  )}
                 </TableCell>
                 <TableCell>
                   <Chip
-                    label={employee.active ? "Activo" : "Inactivo"}
-                    color={employee.active ? "success" : "default"}
+                    label={customer.active ? "Activo" : "Inactivo"}
+                    color={customer.active ? "success" : "default"}
                     size="small"
                     variant="outlined"
                   />
                 </TableCell>
                 <TableCell align="right">
-                  <Tooltip title="Editar empleado">
+                  <Tooltip title="Editar cliente">
                     <IconButton
                       aria-label={`Editar ${fullName}`}
-                      onClick={() => onEdit(employee)}
+                      onClick={() => onEdit(customer)}
                       size="small"
                     >
                       <EditOutlinedIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Eliminar empleado">
+                  <Tooltip title="Eliminar cliente">
                     <IconButton
                       aria-label={`Eliminar ${fullName}`}
-                      onClick={() => onDelete(employee)}
+                      onClick={() => onDelete(customer)}
                       size="small"
                     >
                       <DeleteOutlineIcon fontSize="small" />

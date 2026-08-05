@@ -9,7 +9,7 @@ const STATUS_FALLBACK_MESSAGES: Record<number, string> = {
   500: DEFAULT_MESSAGE,
 };
 
-function isApiError(error: unknown): error is ApiError {
+export function isApiError(error: unknown): error is ApiError {
   return (
     typeof error === "object" &&
     error !== null &&

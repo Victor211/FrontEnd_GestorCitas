@@ -410,9 +410,10 @@ muestra como "Sin teléfono" / "Sin correo" en lugar de un valor vacío o `null`
 ### Avatar e iniciales
 
 `EmployeesTable` y `EmployeeCard` muestran un `Avatar` con el color del empleado y sus
-iniciales, calculadas con la utilidad reutilizable `getEmployeeInitials`
-(`src/features/employees/utils/initials.ts`) — el color nunca es el único indicador, el
-nombre completo siempre se muestra junto al avatar.
+iniciales, calculadas con la utilidad común reutilizable `getInitials`
+(`src/utils/getInitials.ts` — promovida desde Employees a esta ubicación en la Fase 7 para
+que Customers también la reutilice sin duplicarla) — el color nunca es el único indicador,
+el nombre completo siempre se muestra junto al avatar.
 
 ### Servicios asignados en el listado
 
@@ -438,3 +439,224 @@ Crear, editar y eliminar un empleado invalidan `dashboardKeys.summary`, por lo q
 `activeEmployees` se actualiza sin recargar la página. Al cerrar sesión,
 `queryClient.clear()` limpia también la cache de Employees — no hay limpieza manual
 adicional en el módulo.
+
+## Módulo Customers
+
+CRUD completo de clientes (`src/features/customers/`), reutilizando los mismos patrones que
+Services y Employees (API tipada, query keys, hooks con TanStack Query, formulario con
+React Hook Form + Zod, `ConfirmDialog`/`SuccessSnackbar`/`ErrorAlert`/`EmptyState`/
+`LoadingTable`, búsqueda con debounce, paginación real del backend, responsive e
+invalidación del Dashboard). Endpoints reales:
+
+- `GET /api/customers` — listado paginado, soporta `name` (busca por nombre o apellido
+  según la lógica del backend), `page` y `size`.
+- `GET /api/customers/{id}` — detalle (expuesto vía `useCustomer`, no usado por el listado).
+- `GET /api/customers/by-phone?phone=...` — búsqueda directa por teléfono (ver más abajo).
+- `POST /api/customers` — creación.
+- `PUT /api/customers/{id}` — edición.
+- `DELETE /api/customers/{id}` — eliminación lógica (soft delete).
+
+Todas las llamadas usan `apiClient` (`src/features/customers/api/customersApi.ts`), sin
+`fetch` ni instancias Axios adicionales.
+
+### Tipos
+
+`src/features/customers/types/customer.types.ts` define `Customer`
+(`email`/`notes` tipados `string | null`), `CreateCustomerRequest`, `UpdateCustomerRequest`
+(alias de `CreateCustomerRequest`) y `CustomerFilters`. Reutiliza `PageResponse<T>` global
+sin duplicarlo.
+
+### Query keys y hooks
+
+`customersKeys` (`src/features/customers/api/customersKeys.ts`) sigue la misma estructura
+que `servicesKeys`/`employeesKeys` (`all`, `lists()`, `list(filters)`, `details()`,
+`detail(id)`) y agrega una rama independiente para la búsqueda por teléfono:
+`byPhoneRoot()` / `byPhone(phone)` — cada teléfono tiene su propia query key, así no se
+reutilizan accidentalmente resultados de teléfonos distintos. Hooks en
+`src/features/customers/hooks/`:
+
+- `useCustomers(filters)` — listado con `placeholderData: keepPreviousData`.
+- `useCustomer(id)` — detalle individual.
+- `useCustomerByPhone(phone, options)` — solo se ejecuta cuando `phone` no está vacío
+  (`enabled`); un 404 no reintenta gracias a la configuración global de `queryClient`
+  (`src/lib/queryClient.ts`), que ya excluye 401/403/404 del retry.
+- `useCreateCustomer()`, `useUpdateCustomer()`, `useDeleteCustomer()` — invalidan
+  `customersKeys.lists()` (+ `customersKeys.detail(id)` en el update), toda la rama
+  `customersKeys.byPhoneRoot()` (para que una búsqueda por teléfono ya no muestre datos
+  obsoletos tras crear/editar/eliminar) y `dashboardKeys.summary`, sin invalidar el
+  `QueryClient` completo.
+
+### Búsqueda principal y búsqueda por teléfono
+
+`CustomersPage` mantiene la misma estrategia de debounce (400 ms) que Services/Employees
+para el buscador por nombre o apellido, reiniciando `page` a `0`. La búsqueda por teléfono
+es una acción separada e independiente de la paginación principal: el botón "Buscar por
+teléfono" abre `CustomerPhoneSearchDialog`, que solo dispara `GET /api/customers/by-phone`
+cuando el usuario confirma un teléfono no vacío (no se ejecuta en cada tecla). El resultado
+(`CustomerPhoneResult`) maneja loading, cliente encontrado (con acción "Editar cliente" que
+abre `CustomerDialog` en modo edición) y 404 como un estado informativo dentro del propio
+diálogo ("Cliente no encontrado."), no como un error global de la página. El cliente
+encontrado nunca se inserta en el listado paginado si no corresponde a los filtros activos.
+
+### Formulario y validaciones
+
+`CustomerForm` (`src/features/customers/components/CustomerForm.tsx`) es el único
+formulario, reutilizado para crear y editar. Esquema Zod
+(`src/features/customers/schemas/customer.schema.ts`):
+
+- `firstName` / `lastName`: obligatorios, 2–100 caracteres.
+- `phone`: **obligatorio** (identifica al cliente en los flujos de WhatsApp e IA, nunca se
+  vuelve opcional), 6–30 caracteres, sin regex rígida que rechace formatos internacionales
+  válidos con `+`.
+- `email`: opcional; si tiene contenido, debe tener formato válido; máximo 150 caracteres.
+- `notes`: opcional, `TextField` multiline (`minRows={3}`), máximo 1000 caracteres, se
+  muestra siempre como texto plano (nunca se interpreta como HTML).
+
+### Normalización del payload
+
+`normalizeCustomerPayload` (`src/features/customers/schemas/customer.schema.ts`) centraliza
+el `trim()` de todos los campos y la conversión de `email`/`notes` vacíos (o solo espacios)
+a `null` antes de `POST`/`PUT`, para no duplicar esa lógica entre crear y editar. `phone`
+nunca se convierte a `null` — el schema Zod ya impide enviar el formulario sin teléfono.
+Al editar, `toCustomerFormValues` convierte un `email`/`notes` `null` del backend a `""`
+para los `defaultValues` del formulario, evitando pasar `null` a un input controlado.
+
+### Avatar e iniciales
+
+`CustomersTable` y `CustomerCard` muestran un `Avatar` con las iniciales del cliente,
+calculadas con la utilidad común `getInitials` (`src/utils/getInitials.ts`) — la misma que
+usa Employees, sin duplicarla. A diferencia de Employees, Customers no tiene un campo
+`color` propio: el `Avatar` usa el color neutro por defecto de Material UI, sin inventar ni
+persistir un color para el cliente.
+
+### Errores de negocio
+
+409 (teléfono duplicado dentro del negocio), 400 (datos inválidos), 404 (cliente no
+encontrado) y 500 se muestran con el mensaje real del backend vía `getApiErrorMessage`
+(`isApiError` ahora se exporta desde ese archivo para poder distinguir el 404 de la
+búsqueda por teléfono del resto de errores). Ningún diálogo se cierra ni limpia sus campos
+si la operación falla.
+
+### Responsive
+
+Escritorio/tablet: `CustomersTable`, con las notas truncadas (`noWrap` + `Tooltip`) para no
+expandir la fila. Móvil (`xs`, por debajo de `md`): `CustomerCard` con iniciales, teléfono,
+email o "Sin correo" y notas resumidas (recorte a 2 líneas). `CustomerDialog` y
+`CustomerPhoneSearchDialog` pasan a `fullScreen` por debajo del breakpoint `sm`.
+
+### Integración con Dashboard, cache y WhatsApp/IA
+
+Crear, editar y eliminar un cliente invalidan `dashboardKeys.summary`, por lo que
+`activeCustomers` se actualiza sin recargar la página; no se modificó el endpoint del
+Dashboard. Al cerrar sesión, `queryClient.clear()` limpia también la cache de Customers
+(listado, detalle y búsquedas por teléfono). El frontend únicamente administra los datos de
+Customers: no implementa lógica de WhatsApp ni de IA, no reformatea automáticamente el
+teléfono de una manera que altere números válidos y no asume un código de país fijo — el
+campo `phone` se trata como texto obligatorio, tal como lo requieren esos flujos externos.
+
+## Módulo Schedules
+
+Administra la disponibilidad semanal de cada empleado (`src/features/schedules/`). La
+interfaz se organiza como **Empleado → Semana → Día → Bloques horarios**, no como una tabla
+plana: el usuario primero selecciona un empleado y luego ve sus siete días con los bloques
+horarios de cada uno. Endpoints reales:
+
+- `GET /api/schedules` — listado general (expuesto vía `getSchedules`, no usado por la
+  página principal).
+- `GET /api/schedules/{id}` — detalle (expuesto vía `useSchedule`, no usado por la página).
+- `GET /api/schedules/employee/{employeeId}` — fuente de la vista semanal; se usa
+  exclusivamente este endpoint filtrado por empleado, nunca se descargan todos los horarios
+  del negocio para filtrarlos en memoria.
+- `POST /api/schedules` — creación de un bloque.
+- `PUT /api/schedules/{id}` — edición de un bloque (mismo contrato que la creación).
+- `DELETE /api/schedules/{id}` — eliminación lógica.
+
+Todas las llamadas usan `apiClient` (`src/features/schedules/api/schedulesApi.ts`), sin
+`fetch` ni instancias Axios adicionales.
+
+### Tipos y configuración de días
+
+`src/features/schedules/types/schedule.types.ts` define `DayOfWeek` (los siete valores
+exactos del backend, en inglés y mayúsculas), `Schedule`, `CreateScheduleRequest`,
+`UpdateScheduleRequest` (mismo contrato que create), `ScheduleDay` (agrupación de un día con
+sus bloques, usada por la vista semanal) y `ScheduleFormValues`. La configuración de días
+está centralizada en `src/features/schedules/utils/daysOfWeek.ts` (`DAYS_OF_WEEK`, con
+`value`, `shortLabel`, `fullLabel` y `order`, empezando en lunes) — ningún componente
+traduce o hardcodea nombres de días por su cuenta.
+
+### Query keys y hooks
+
+`schedulesKeys` (`src/features/schedules/api/schedulesKeys.ts`) sigue la misma estructura
+que el resto de módulos, agregando una rama independiente por empleado:
+`byEmployeeRoot()` / `byEmployee(employeeId)`. Hooks en `src/features/schedules/hooks/`:
+
+- `useSchedulesByEmployee(employeeId, options)` — hook principal de la página; **no** usa
+  `placeholderData: keepPreviousData` a propósito: al cambiar de empleado se prefiere un
+  loading breve antes que mostrar los horarios del empleado anterior bajo el nombre del
+  nuevo.
+- `useSchedule(id)` — detalle individual.
+- `useCreateSchedule()`, `useUpdateSchedule()`, `useDeleteSchedule()` — invalidan
+  `schedulesKeys.byEmployee(employeeId)` (tomado de la request/variables de la mutación,
+  no de un estado externo) y `schedulesKeys.lists()`, sin invalidar el `QueryClient`
+  completo. No invalidan el Dashboard: no contiene métricas de horarios.
+
+### Selección de empleado
+
+`EmployeeScheduleSelector` reutiliza directamente `useEmployees` (hook), `Employee` (tipo) y
+`getInitials` del módulo Employees — no existe una segunda implementación para consultar
+empleados. `SchedulesPage` consulta `{ page: 0, size: 100 }` sin `name`, filtra a
+`employee.active` y maneja loading/error/vacío a nivel de página (no dentro del selector)
+para poder mostrar `ErrorState` con reintento y el `EmptyState` "No hay empleados
+disponibles" con la acción "Ir a empleados" (`/employees`) sin perder el resto del layout.
+Si existe un único empleado activo, se selecciona automáticamente; si hay varios, se
+muestra un estado invitando a elegir uno — nunca se selecciona un empleado arbitrario ni se
+ejecuta la petición de horarios sin un `employeeId`.
+
+### Vista semanal y múltiples bloques por día
+
+`WeeklySchedule` agrupa los horarios con `groupSchedulesByDay` (que siempre devuelve los
+siete días en el orden de `DAYS_OF_WEEK`, cada uno con sus bloques ordenados por
+`startTime` ascendente mediante una copia del array, sin mutar el cache de TanStack Query) y
+renderiza un `ScheduleDayCard` por día en un grid responsive (una columna en móvil, hasta
+tres en escritorio). Cada día admite múltiples bloques (`ScheduleBlock`), muestra "Sin
+horarios" cuando no tiene ninguno y siempre expone la acción "Agregar bloque".
+
+### Formato de LocalTime (sin timezone)
+
+El backend devuelve `startTime`/`endTime` como `LocalTime` en formato `HH:mm:ss` — **no**
+son `Instant` UTC como las citas, y no se procesan con timezone ni con `Date`.
+`src/features/schedules/utils/scheduleTime.ts` centraliza `formatScheduleTime` (recorta a
+`HH:mm` para mostrar) y `calculateScheduleDuration` (duración legible tipo "4 h" a partir de
+una resta simple en minutos). `ScheduleBlock` nunca muestra segundos, IDs ni timestamps.
+
+### Formulario, normalización y validación de superposición
+
+`ScheduleForm` es el único formulario, reutilizado para crear y editar; usa `input
+type="time"` nativo (sin agregar MUI X Date Pickers). Esquema Zod
+(`src/features/schedules/schemas/schedule.schema.ts`): `employeeId` entero positivo,
+`dayOfWeek` dentro del enum real del backend, `startTime`/`endTime` con formato `HH:mm`, y
+un `refine` que exige `startTime < endTime` (mensaje "La hora de fin debe ser posterior a
+la hora de inicio."). `normalizeSchedulePayload` centraliza la conversión `HH:mm` →
+`HH:mm:ss` antes de `POST`/`PUT`; `toScheduleFormValues` hace el camino inverso
+(`HH:mm:ss` → `HH:mm`, reutilizando `formatScheduleTime`) para precargar el formulario al
+editar. No se implementó detección local de superposición (opcional según el enunciado): el
+backend sigue siendo la única fuente de verdad y su `409` ("el horario se superpone con
+otro horario existente del empleado") se muestra dentro del diálogo vía `FormErrorAlert`
+sin cerrarlo ni perder los valores cargados — el mismo patrón que 400/404/500 en el resto de
+módulos.
+
+### Estados sin empleado y sin horarios
+
+Sin empleado seleccionado se muestra un `EmptyState` informativo ("Seleccioná un empleado
+para gestionar sus horarios") en lugar de disparar la petición o mostrar una semana vacía
+sin contexto. Un empleado sin ningún `Schedule` sigue mostrando los siete días completos
+(cada uno con "Sin horarios" y su propio "Agregar bloque") — nunca se oculta la semana con
+un `EmptyState` genérico que perjudique la comprensión de la semana completa.
+
+### Responsive
+
+Escritorio: grid de hasta 3 columnas de `ScheduleDayCard`, con el botón "Agregar bloque"
+anclado al final de cada card (`mt: "auto"`) para una altura visualmente consistente sin
+forzar alturas fijas. Tablet: 2 columnas. Móvil: una columna (lista vertical), sin scroll
+horizontal global; `ScheduleDialog` pasa a `fullScreen` por debajo del breakpoint `sm`, con
+los mismos targets táctiles que el resto de diálogos de la aplicación.

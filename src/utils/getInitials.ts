@@ -1,4 +1,4 @@
-export function getEmployeeInitials(firstName: string, lastName: string): string {
+export function getInitials(firstName: string, lastName: string): string {
   const first = firstName.trim().charAt(0);
   const last = lastName.trim().charAt(0);
   return `${first}${last}`.toUpperCase();
