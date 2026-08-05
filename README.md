@@ -315,3 +315,126 @@ precio y acciones. `ServiceDialog` pasa a `fullScreen` por debajo del breakpoint
 
 Al cerrar sesión, `queryClient.clear()` (ver sección de Dashboard) también limpia la cache
 de Services — no hay limpieza manual adicional en el módulo.
+
+## Módulo Employees
+
+CRUD completo de empleados (`src/features/employees/`), reutilizando explícitamente los
+patrones ya establecidos por Services (API tipada, query keys, hooks con TanStack Query,
+formulario con React Hook Form + Zod, `ServiceDialog`/`ConfirmDialog`/`SuccessSnackbar`/
+`EmptyState`/`LoadingTable`, paginación y búsqueda con debounce). Endpoints reales:
+
+- `GET /api/employees` — listado paginado, soporta `name`, `page` y `size`.
+- `GET /api/employees/{id}` — detalle (expuesto vía `useEmployee`, no usado por el listado).
+- `POST /api/employees` — creación.
+- `PUT /api/employees/{id}` — edición (reemplaza por completo los `serviceIds` asignados).
+- `DELETE /api/employees/{id}` — eliminación lógica (soft delete).
+
+Todas las llamadas usan `apiClient` (`src/features/employees/api/employeesApi.ts`), sin
+`fetch` ni instancias Axios adicionales.
+
+### Tipos
+
+`src/features/employees/types/employee.types.ts` define `Employee`,
+`EmployeeServiceSummary` (`id`, `name`, `durationMinutes`, `price`, `color`),
+`CreateEmployeeRequest`, `UpdateEmployeeRequest` (alias de `CreateEmployeeRequest`) y
+`EmployeeFilters`. Reutiliza `PageResponse<T>` global (`src/api/types/page-response.types.ts`,
+creado en la Fase 5) sin duplicarlo.
+
+### Query keys y hooks
+
+`employeesKeys` (`src/features/employees/api/employeesKeys.ts`) sigue la misma estructura
+que `servicesKeys`: `all`, `lists()`, `list(filters)`, `details()`, `detail(id)`. Hooks en
+`src/features/employees/hooks/`:
+
+- `useEmployees(filters)` — listado con `placeholderData: keepPreviousData`.
+- `useEmployee(id)` — detalle individual.
+- `useCreateEmployee()`, `useUpdateEmployee()`, `useDeleteEmployee()` — invalidan
+  `employeesKeys.lists()` (y `employeesKeys.detail(id)` en el update) y `dashboardKeys.summary`,
+  sin invalidar el `QueryClient` completo.
+
+### Relación con Services
+
+El selector de servicios del formulario (`EmployeeServicesSelect`) reutiliza directamente
+`useServices` (hook), `servicesApi`/`servicesKeys` (indirectamente vía el hook) y el tipo
+`Service` del módulo Services — no existe un segundo acceso a `/api/services`. Consulta
+`{ page: 0, size: 100 }` sin `name` (sin paginación propia dentro del selector, según lo
+definido para esta fase) y filtra a `service.active` antes de mostrar las opciones, para no
+permitir seleccionar servicios eliminados lógicamente. El precio se muestra con
+`formatServicePrice` y la duración con `formatServiceDuration`, ambos reutilizados de
+`src/features/services/utils/formatters.ts` sin duplicar el formatter.
+
+### Selector múltiple de servicios
+
+`EmployeeServicesSelect` usa `Autocomplete` `multiple` de Material UI. Cada opción muestra
+un indicador de color, el nombre, la duración y el precio formateado. El valor se guarda en
+el formulario como `serviceIds: number[]` (nunca los objetos completos). Mientras
+`useServices` carga, el Autocomplete queda deshabilitado y muestra un `CircularProgress` en
+el input; si la carga falla, se reemplaza por `ErrorAlert` con botón "Reintentar" y el
+formulario no puede enviarse porque el esquema Zod exige al menos un servicio seleccionado.
+Al editar, `EmployeeForm` se remonta con `key` según el empleado, precargando sus
+`serviceIds` actuales a partir de `employee.services`.
+
+### Formulario y validaciones
+
+`EmployeeForm` (`src/features/employees/components/EmployeeForm.tsx`) es el único
+formulario, reutilizado para crear y editar. Esquema Zod
+(`src/features/employees/schemas/employee.schema.ts`):
+
+- `firstName` / `lastName`: obligatorios, 2–100 caracteres.
+- `phone`: **opcional**, máximo 30 caracteres, sin regex rígida de formato.
+- `email`: **opcional**; si tiene contenido, debe tener formato de email válido; máximo 150
+  caracteres.
+- `color`: obligatorio, formato `#RRGGBB` (reutiliza `HEX_COLOR_REGEX` exportado desde el
+  esquema de Services, sin duplicar la expresión regular).
+- `serviceIds`: al menos un servicio, sin IDs repetidos.
+
+El color se edita igual que en Services: un `TextField` de texto sincronizado con un
+`<input type="color">` nativo como selector/preview.
+
+### Teléfono y email opcionales
+
+`phone` y `email` son opcionales tanto en `Employee` como en `CreateEmployeeRequest` /
+`UpdateEmployeeRequest` (tipados como `string | null`). El formulario no marca estos campos
+como requeridos (sin asterisco, con texto auxiliar "Opcional") y el schema Zod solo valida
+el formato de `email` cuando el campo tiene contenido — un campo vacío es válido en ambos
+casos.
+
+Antes de enviar `POST`/`PUT`, `normalizeEmployeePayload`
+(`src/features/employees/schemas/employee.schema.ts`) centraliza el `trim()` y la
+conversión de cadenas vacías (o solo espacios) a `null`, para no duplicar esa lógica entre
+crear y editar. Al editar, `toEmployeeFormValues` convierte un `phone`/`email` `null` del
+backend a `""` para los `defaultValues` del formulario, evitando pasar `null` a un input
+controlado. En el listado (`EmployeesTable`/`EmployeeCard`), un `phone`/`email` `null` se
+muestra como "Sin teléfono" / "Sin correo" en lugar de un valor vacío o `null` crudo.
+
+### Avatar e iniciales
+
+`EmployeesTable` y `EmployeeCard` muestran un `Avatar` con el color del empleado y sus
+iniciales, calculadas con la utilidad reutilizable `getEmployeeInitials`
+(`src/features/employees/utils/initials.ts`) — el color nunca es el único indicador, el
+nombre completo siempre se muestra junto al avatar.
+
+### Servicios asignados en el listado
+
+`EmployeeServicesChips` muestra hasta 2 servicios como `Chip` en la tabla de escritorio (3
+en las cards móviles) y agrupa el resto en un `Chip "+N"` con `Tooltip` con los nombres
+restantes, para no renderizar listas largas dentro de la fila.
+
+### Errores de negocio
+
+409 (teléfono duplicado), 400 (datos inválidos), 404 (empleado no encontrado o servicios
+inexistentes/inactivos al asignar) y 500 se muestran con el mensaje real del backend vía
+`getApiErrorMessage`, sin cerrar el diálogo correspondiente.
+
+### Responsive
+
+Escritorio/tablet: `EmployeesTable`. Móvil (`xs`, por debajo de `md`): `EmployeeCard` con
+avatar, teléfono, email, servicios asignados y acciones. `EmployeeDialog` pasa a
+`fullScreen` por debajo del breakpoint `sm`, igual que `ServiceDialog`.
+
+### Integración con Dashboard y cache
+
+Crear, editar y eliminar un empleado invalidan `dashboardKeys.summary`, por lo que
+`activeEmployees` se actualiza sin recargar la página. Al cerrar sesión,
+`queryClient.clear()` limpia también la cache de Employees — no hay limpieza manual
+adicional en el módulo.
