@@ -22,7 +22,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const clearSession = useCallback(() => {
     tokenStorage.removeAccessToken();
     setAccessTokenState(null);
-    queryClient.removeQueries({ queryKey: authKeys.currentUser });
+    queryClient.clear();
   }, [queryClient]);
 
   useEffect(() => {

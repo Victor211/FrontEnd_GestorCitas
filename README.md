@@ -119,3 +119,103 @@ mediante una abstracción propia (`src/layouts/sidebarPreference.ts`) independie
 
 `Header`, `UserMenu` y `DashboardPage` leen `user` directamente desde `AuthContext`
 (`useAuth()`) — no se realiza ninguna llamada adicional a `/api/auth/me` desde el layout.
+
+## Dashboard del Frontend
+
+El Dashboard (`src/features/dashboard/`) obtiene toda su información mediante una única
+llamada al backend:
+
+- `GET /api/dashboard` — requiere JWT, igual que el resto de endpoints protegidos.
+
+### Estructura de la respuesta
+
+```json
+{
+  "success": true,
+  "message": "Operación exitosa",
+  "data": {
+    "todayAppointments": 0,
+    "activeCustomers": 1,
+    "activeEmployees": 1,
+    "activeServices": 2,
+    "upcomingAppointments": [
+      {
+        "id": 2,
+        "customerId": 2,
+        "customerName": "Cristian Benitez",
+        "employeeId": 1,
+        "employeeName": "Juan Gómez",
+        "serviceId": 1,
+        "serviceName": "Corte Premium",
+        "startAt": "2026-08-10T13:00:00Z",
+        "endAt": "2026-08-10T14:00:00Z",
+        "status": "CONFIRMED"
+      }
+    ]
+  },
+  "timestamp": "..."
+}
+```
+
+Tipado en `src/features/dashboard/types/dashboard.types.ts` (`DashboardResponse`,
+`UpcomingAppointment`, `AppointmentStatus`), reutilizando el `ApiResponse<T>` global. La
+petición vive en `src/features/dashboard/api/dashboardApi.ts` (`getDashboard()`), que usa
+exclusivamente `apiClient` — sin `fetch` ni instancias Axios adicionales.
+
+### Hook `useDashboard`
+
+`src/features/dashboard/hooks/useDashboard.ts` envuelve `getDashboard()` en TanStack Query
+bajo la query key centralizada `dashboardKeys.summary`
+(`src/features/dashboard/api/dashboardKeys.ts`). No sobrescribe `staleTime`, `retry` ni
+`refetchOnWindowFocus`: hereda la configuración global de `src/lib/queryClient.ts`
+(`staleTime` de 60 segundos, sin reintentos para `401`/`403`/`404`,
+`refetchOnWindowFocus` en `false`), evitando duplicar esa lógica por feature.
+
+### Loading, error y estado vacío
+
+`DashboardPage` consume únicamente `useDashboard()` — no realiza llamadas HTTP directas:
+
+- **Loading:** mientras la query está en su primera carga (`isPending`) se muestra
+  `DashboardSkeleton`, con placeholders para las cuatro métricas y para la sección de
+  próximas citas, evitando saltos de layout.
+- **Error:** si la query falla (`isError`) se muestra `DashboardError`, un `Alert` con el
+  mensaje de `getApiErrorMessage` y un botón "Reintentar" que ejecuta `refetch()`. Un `401`
+  dispara la estrategia global de sesión (`sessionManager` + `AuthProvider`) sin lógica
+  especial dentro del Dashboard.
+- **Vacío:** si `upcomingAppointments` llega vacío se muestra un `EmptyState` reutilizable
+  (`src/components/common/EmptyState.tsx`) con la acción "Crear cita" hacia `/appointments`.
+
+### Métricas
+
+`MetricsGrid` renderiza cuatro `MetricCard` (citas de hoy, clientes activos, empleados
+activos, servicios activos), cada una con ícono de Material UI, valor real del backend y
+navegación accesible por teclado (`CardActionArea` + `react-router-dom`) hacia
+`/appointments`, `/customers`, `/employees` y `/services` respectivamente.
+
+### Próximas citas
+
+`UpcomingAppointments` muestra `UpcomingAppointmentsTable` en escritorio (`md` en adelante)
+y una lista de `UpcomingAppointmentCard` en móvil/tablet, sin duplicar la petición. Las
+fechas UTC del backend se convierten con Day.js a la zona horaria del navegador
+(`src/features/dashboard/utils/formatDashboardDate.ts`) y los estados de la cita se
+traducen mediante una utilidad centralizada
+(`src/features/dashboard/utils/appointmentStatus.ts`) que además define el color de cada
+`Chip`, evitando condicionales dispersos.
+
+### Acciones rápidas
+
+`QuickActions` navega a `/appointments`, `/customers`, `/services` y `/employees`. En esta
+fase no abre formularios ni modales: solo redirige al módulo correspondiente.
+
+### Responsive
+
+Escritorio: cuatro tarjetas de métricas en una fila y tabla para próximas citas. Tablet: dos
+tarjetas por fila. Móvil: una tarjeta por fila, próximas citas en cards y acciones rápidas
+apiladas verticalmente — sin scroll horizontal global.
+
+### Refresh y cache
+
+El encabezado del Dashboard incluye un botón de actualización que ejecuta `refetch()` y se
+deshabilita mientras la petición está en curso. No hay polling automático. Al cerrar sesión,
+`AuthProvider` limpia toda la cache de TanStack Query (`queryClient.clear()`), por lo que
+`DashboardPage` no implementa ninguna limpieza manual adicional.

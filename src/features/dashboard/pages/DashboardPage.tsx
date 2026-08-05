@@ -1,15 +1,16 @@
-import { Box, Card, CardContent, Typography } from "@mui/material";
+import { Stack } from "@mui/material";
 import { useAuth } from "../../auth/hooks/useAuth";
-
-const STAT_CARDS = [
-  { id: "today", label: "Citas de hoy" },
-  { id: "upcoming", label: "Próximas citas" },
-  { id: "customers", label: "Clientes" },
-  { id: "employees", label: "Empleados" },
-];
+import { DashboardError } from "../components/DashboardError";
+import { DashboardHeader } from "../components/DashboardHeader";
+import { DashboardSkeleton } from "../components/DashboardSkeleton";
+import { MetricsGrid } from "../components/MetricsGrid";
+import { QuickActions } from "../components/QuickActions";
+import { UpcomingAppointments } from "../components/UpcomingAppointments";
+import { useDashboard } from "../hooks/useDashboard";
 
 export function DashboardPage() {
   const { user } = useAuth();
+  const dashboardQuery = useDashboard();
 
   if (!user) {
     return null;
@@ -17,41 +18,27 @@ export function DashboardPage() {
 
   return (
     <>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 600 }}>
-          Hola, {user.firstName}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          {user.businessName} — sesión autenticada correctamente.
-        </Typography>
-      </Box>
-      <Box
-        sx={{
-          display: "grid",
-          gap: 2,
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "1fr 1fr",
-            md: "repeat(4, 1fr)",
-          },
-        }}
-      >
-        {STAT_CARDS.map((card) => (
-          <Card key={card.id} variant="outlined" sx={{ borderRadius: 3 }}>
-            <CardContent>
-              <Typography variant="body2" color="text.secondary">
-                {card.label}
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 700, mt: 1 }}>
-                —
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Próximamente
-              </Typography>
-            </CardContent>
-          </Card>
-        ))}
-      </Box>
+      <DashboardHeader
+        firstName={user.firstName}
+        businessName={user.businessName}
+        onRefresh={() => void dashboardQuery.refetch()}
+        isRefreshing={dashboardQuery.isFetching}
+      />
+      {dashboardQuery.isPending && <DashboardSkeleton />}
+      {dashboardQuery.isError && (
+        <DashboardError
+          error={dashboardQuery.error}
+          onRetry={() => void dashboardQuery.refetch()}
+          isRetrying={dashboardQuery.isFetching}
+        />
+      )}
+      {dashboardQuery.isSuccess && (
+        <Stack spacing={3}>
+          <MetricsGrid data={dashboardQuery.data} />
+          <UpcomingAppointments appointments={dashboardQuery.data.upcomingAppointments} />
+          <QuickActions />
+        </Stack>
+      )}
     </>
   );
 }
