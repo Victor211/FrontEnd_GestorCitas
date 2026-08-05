@@ -219,3 +219,99 @@ El encabezado del Dashboard incluye un botón de actualización que ejecuta `ref
 deshabilita mientras la petición está en curso. No hay polling automático. Al cerrar sesión,
 `AuthProvider` limpia toda la cache de TanStack Query (`queryClient.clear()`), por lo que
 `DashboardPage` no implementa ninguna limpieza manual adicional.
+
+## Módulo Services
+
+CRUD completo de servicios (`src/features/services/`) sobre los endpoints reales:
+
+- `GET /api/services` — listado paginado, soporta `name`, `page` y `size`.
+- `GET /api/services/{id}` — detalle (expuesto vía `useService`, no usado por la página de
+  listado porque la fila ya trae el objeto completo).
+- `POST /api/services` — creación.
+- `PUT /api/services/{id}` — edición.
+- `DELETE /api/services/{id}` — eliminación lógica (soft delete).
+
+Todas las llamadas usan `apiClient` (`src/features/services/api/servicesApi.ts`), sin
+`fetch` ni instancias Axios adicionales.
+
+### Tipos
+
+`src/features/services/types/service.types.ts` define `Service`, `CreateServiceRequest`,
+`UpdateServiceRequest` (alias de `CreateServiceRequest`, mismo contrato) y
+`ServicesListParams`. La forma paginada del backend se tipa con `PageResponse<T>`
+(`src/api/types/page-response.types.ts`), agregada a nivel global junto a `ApiResponse<T>`
+para que otros módulos paginados (Employees, Customers, etc.) la reutilicen sin duplicarla.
+
+### Query keys y hooks
+
+`servicesKeys` (`src/features/services/api/servicesKeys.ts`) centraliza las keys: `all`,
+`lists()`, `list(filters)`, `details()`, `detail(id)`. Hooks en
+`src/features/services/hooks/`:
+
+- `useServices(filters)` — listado con `placeholderData: keepPreviousData` para mantener
+  la página anterior visible (sin parpadeos) mientras se resuelve la siguiente.
+- `useService(id)` — detalle individual.
+- `useCreateService()`, `useUpdateService()`, `useDeleteService()` — mutaciones que, al
+  tener éxito, invalidan `servicesKeys.lists()` (y `servicesKeys.detail(id)` en el update) y
+  además `dashboardKeys.summary`, para que las métricas `activeServices` del Dashboard
+  queden al día sin recargar la página.
+
+### Búsqueda y paginación
+
+`ServicesPage` mantiene el texto tipeado (`searchInput`) separado del valor efectivo que
+viaja en la query (`search`), aplicando un debounce de 400 ms antes de actualizar `search` y
+reiniciar `page` a `0`. La paginación usa exclusivamente los datos reales del `Page` del
+backend (`content`, `totalElements`, `number`, `size`) a través de `TablePagination` de
+Material UI, con tamaños de página `5 / 10 / 20` — no hay paginación manual en el frontend.
+
+### Formulario y validaciones
+
+`ServiceForm` (`src/features/services/components/ServiceForm.tsx`) es el único formulario,
+reutilizado tanto para crear como para editar (`ServiceDialog` decide el modo según si
+recibe un `Service` o `null`, y lo remonta con `key` para resetear sus valores). Usa React
+Hook Form + Zod (`src/features/services/schemas/service.schema.ts`):
+
+- `name`: obligatorio, 2–100 caracteres.
+- `description`: opcional, máximo 500 caracteres.
+- `durationMinutes`: obligatorio, entero, mayor a 0, máximo 480.
+- `price`: obligatorio, mayor a 0.
+- `color`: obligatorio, formato `#RRGGBB` (regex compartida `HEX_COLOR_REGEX`).
+
+El color se edita con un `TextField` de texto (validado por el mismo regex) sincronizado con
+un `<input type="color">` nativo que actúa como selector y preview, sin agregar ninguna
+librería de color picker.
+
+### Formato de precio y duración
+
+`src/features/services/utils/formatters.ts` centraliza `formatServicePrice` (con
+`Intl.NumberFormat("es-PY", { style: "currency", currency: "PYG" })`, sin símbolo `$`
+hardcodeado) y `formatServiceDuration` (`"60 min"`). Ambos se reutilizan en la tabla y en las
+cards, evitando duplicar el formato.
+
+### Feedback compartido
+
+Se agregaron componentes genéricos en `src/components/feedback/` para reutilizar en
+Services y en futuros módulos: `ConfirmDialog` (usado por `DeleteServiceDialog`, con mensaje
+explícito del servicio a eliminar), `SuccessSnackbar`, `ErrorAlert` y `LoadingTable`. El
+`EmptyState` común (`src/components/common/EmptyState.tsx`, ya creado en la Fase 4) se
+reutiliza diferenciando "no hay servicios registrados" (acción "Crear primer servicio") de
+"no se encontraron servicios" cuando la búsqueda no da resultados (acción "Limpiar
+búsqueda").
+
+### Errores de negocio
+
+Los mensajes de error (409 nombre duplicado, 400 datos inválidos, 404 no encontrado, 500)
+se muestran tal como los devuelve el backend vía `getApiErrorMessage`, tanto en el diálogo
+de crear/editar (`FormErrorAlert`) como en el de eliminar (`ConfirmDialog`). El diálogo
+correspondiente no se cierra si la operación falla.
+
+### Responsive
+
+Escritorio/tablet: `ServicesTable` (Material UI `Table`). Móvil (`xs`, por debajo de `md`):
+cards compactas (`ServiceCard`) con indicador de color, nombre, descripción, duración,
+precio y acciones. `ServiceDialog` pasa a `fullScreen` por debajo del breakpoint `sm`.
+
+### Cache
+
+Al cerrar sesión, `queryClient.clear()` (ver sección de Dashboard) también limpia la cache
+de Services — no hay limpieza manual adicional en el módulo.
