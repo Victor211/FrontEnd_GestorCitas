@@ -1074,3 +1074,130 @@ reales — pero ese mirror no tiene `extendedProps.appointment` (no es una cita 
 antes de leer cualquier propiedad de la cita — sin esta guarda, seleccionar un rango
 producía un `TypeError` real (`Cannot read properties of undefined`) que rompía toda la
 página. Corregido y verificado durante las pruebas manuales de esta fase.
+
+## Settings del Frontend
+
+Fase 10 reemplaza el placeholder de `/settings` por una pantalla real de configuración del
+negocio (`src/features/settings/`), sin tocar el backend y sin agregar dependencias nuevas.
+
+**El frontend nunca recibe ni administra secretos de OpenAI o WhatsApp.** No existe ningún
+campo, formulario ni almacenamiento local para `WHATSAPP_ACCESS_TOKEN`,
+`WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`, `OPENAI_API_KEY` ni ningún identificador de
+WhatsApp (`whatsappPhoneNumberId`, `whatsappBusinessAccountId`) — esos campos ni siquiera
+están tipados en `BusinessSettings`, solo se expone el booleano `whatsappConfigured`.
+
+### Endpoints reales
+
+- `GET /api/settings/business` — configuración actual del negocio autenticado (el Business
+  se resuelve desde el JWT, nunca desde un `businessId` enviado por el cliente).
+- `PUT /api/settings/business` — actualiza únicamente `name`, `phone`, `email`, `address` y
+  `timezone`. `id`, `active`, `whatsappConfigured` y los identificadores de WhatsApp nunca se
+  envían ni se aceptan en el request.
+
+Contrato verificado contra el Swagger/OpenAPI real (`GET /v3/api-docs`) antes de implementar,
+coincide exactamente con lo documentado en la especificación.
+
+### Tipos, API y query keys
+
+`src/features/settings/types/settings.types.ts` define `BusinessSettings` (`phone`/`email`/
+`address` como `string | null`, sin `any`), `UpdateBusinessSettingsRequest` y
+`SettingsFormValues`. `api/settingsApi.ts` expone `getBusinessSettings()` y
+`updateBusinessSettings(request)`, ambas vía `apiClient` (sin `fetch`, sin instancias Axios
+nuevas). `api/settingsKeys.ts` centraliza `settingsKeys.all` y `settingsKeys.business`.
+
+### Hooks
+
+`useBusinessSettings()` (`staleTime: 60_000`) y `useUpdateBusinessSettings()`. Tras un update
+exitoso, la mutation:
+
+- actualiza `settingsKeys.business` directamente con `setQueryData` (evita un GET extra
+  innecesario, ya tenemos el `BusinessSettings` actualizado en la respuesta del PUT);
+- invalida `authKeys.currentUser` — la misma query key que usa `AuthProvider.refreshCurrentUser()`,
+  reutilizada tal cual, sin duplicar lógica de sesión;
+- invalida `dashboardKeys.summary` por consistencia (el saludo del Dashboard también muestra
+  `businessName`).
+
+Nunca se llama `queryClient.clear()` (reservado para logout) ni se invalidan queries no
+relacionadas.
+
+### Sincronización con AuthContext
+
+`Header` y el saludo del Dashboard ya leían `user.businessName` desde `useAuth()` (sin
+cambios en esos componentes). Como `useCurrentUser()` vive dentro de `AuthProvider` con la
+query key `authKeys.currentUser`, invalidar esa key desde `useUpdateBusinessSettings` dispara
+un refetch de `GET /api/auth/me` automáticamente, y ambos lugares reflejan el nuevo nombre
+del negocio sin recargar la página ni requerir logout/login — verificado en vivo cambiando el
+nombre y observando la actualización instantánea del Header y del Dashboard.
+
+### Formulario, validación y normalización
+
+`BusinessSettingsForm` usa React Hook Form + Zod (`schemas/settings.schema.ts`). Para
+distinguir "datos iniciales del servidor" de "cambios del usuario" sin sobrescribir edición
+en curso durante un refetch en background, se usa el mecanismo oficial de React Hook Form
+v7: `useForm({ values: toSettingsFormValues(settings), resetOptions: { keepDirtyValues: true } })` —
+cuando `settings` cambia de referencia (un refetch), RHF resincroniza el formulario pero
+preserva los campos que el usuario ya modificó. Después de un guardado exitoso se llama
+`reset(toSettingsFormValues(data))` explícitamente con la respuesta del PUT, para garantizar
+que `isDirty` vuelva a `false` de forma inmediata y determinística (sin depender del timing
+del mecanismo de sincronización en background).
+
+Validación (`settingsSchema`): `name` obligatorio (2–150), `phone`/`email`/`address`
+opcionales (vacío permitido, `email` valida formato solo si tiene contenido), `timezone`
+obligatorio y no vacío — el frontend **no** valida que sea un `ZoneId` real (eso es
+responsabilidad exclusiva del backend, que responde 400 con un mensaje real si la zona no es
+válida). `normalizeBusinessSettingsPayload()` centraliza `trim()` de `name`/`timezone` y la
+conversión de `phone`/`email`/`address` vacíos a `null` antes de enviar — no se duplica esta
+lógica en ningún componente.
+
+### Zona horaria
+
+`Autocomplete` de Material UI en modo `freeSolo` con una lista inicial de zonas comunes
+(América + `Europe/Madrid` + `UTC`, sin pretender ser exhaustiva) más la posibilidad de
+escribir cualquier otra zona IANA. Helper text fijo: "Utilizá una zona horaria IANA, por
+ejemplo America/Asuncion." Un `Alert` informativo (tono no alarmista) aclara que cambiar la
+zona horaria no convierte ni modifica citas existentes (siguen en UTC) — no se llama ningún
+endpoint de Appointments desde Settings.
+
+### Estado de WhatsApp y OpenAI
+
+`IntegrationsCard` y `SystemInformationCard` muestran el estado de WhatsApp basado
+exclusivamente en el booleano real `whatsappConfigured` (Chip verde "Configurado" / Chip
+neutro "No configurado", con texto explicativo, no solo color). Para OpenAI, como el endpoint
+no expone ningún estado real, se muestra únicamente "Integración administrada por el
+servidor" **sin** chip ni indicador conectado/desconectado — no se inventa un estado que el
+backend no puede confirmar.
+
+### Loading, error y feedback
+
+`SettingsPage` centraliza una única query (`useBusinessSettings`) y un único gate de
+loading/error para las tres Cards: `SettingsSkeleton` (tres bloques con forma de Card, no un
+`CircularProgress` de página completa) mientras carga, `ErrorAlert` con reintento si falla.
+Los errores de la mutation (400 timezone inválida, 404, 500) se muestran con
+`FormErrorAlert` usando `getApiErrorMessage(error)` — nunca JSON crudo — y el formulario
+permanece abierto con los valores tal como los dejó el usuario. Al guardar con éxito se
+muestra `SuccessSnackbar` ("Configuración actualizada correctamente"), reutilizado del resto
+de la app, sin `alert()` ni recarga de página.
+
+### Responsive y dark mode
+
+Escritorio: `BusinessInformationCard` a ancho completo (el formulario se beneficia del
+espacio), `IntegrationsCard`/`SystemInformationCard` en grilla 2 columnas debajo. Móvil: una
+columna, inputs a ancho completo, botón "Guardar cambios" a ancho completo. Sin scroll
+horizontal. Colores vía tokens del theme de Material UI (`Paper`, `Chip`, `Alert`), sin
+colores hardcodeados — adapta automáticamente a modo oscuro.
+
+### Limitación real del backend encontrada durante las pruebas
+
+Al probar explícitamente los casos "Phone/Email/Address vacío se guarda como `null`"
+(contemplados en el contrato real y en el schema Zod), el endpoint `PUT
+/api/settings/business` devolvió **500 Internal Server Error** al enviar `phone: null` (con
+`name`/`email`/`address`/`timezone` sin cambios). El payload enviado por el frontend coincide
+exactamente con el contrato documentado en el Swagger real (`UpdateBusinessSettingsRequest`
+acepta `phone`/`email`/`address` como `["string", "null"]`) y con la entidad `Business` del
+backend (columnas `phone`/`email`/`address` sin `nullable = false`), por lo que el problema
+no está en el payload del frontend. El comportamiento del frontend ante este error es
+correcto y ya está cubierto por el manejo genérico de errores: el formulario permanece
+abierto, conserva los valores tal como los dejó el usuario, y muestra el mensaje real (o el
+fallback genérico si el backend no envía uno específico) sin romper la página ni la consola.
+Como el enunciado de esta fase indica explícitamente "No modificar el backend", este
+comportamiento no se corrigió aquí; queda documentado para quien continúe con el backend.
