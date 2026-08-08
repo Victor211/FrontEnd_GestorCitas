@@ -660,3 +660,306 @@ anclado al final de cada card (`mt: "auto"`) para una altura visualmente consist
 forzar alturas fijas. Tablet: 2 columnas. Móvil: una columna (lista vertical), sin scroll
 horizontal global; `ScheduleDialog` pasa a `fullScreen` por debajo del breakpoint `sm`, con
 los mismos targets táctiles que el resto de diálogos de la aplicación.
+
+## Módulo Appointments — Fase funcional
+
+Gestión operativa completa de citas (`src/features/appointments/`) desde `/appointments`.
+La agenda visual con FullCalendar se agregó en la Fase 9B (ver sección
+["Agenda visual con FullCalendar"](#agenda-visual-con-fullcalendar) más abajo); esta sección
+documenta la capa de datos y la vista Lista, ambas compartidas por las dos vistas. Endpoints
+reales (contrato verificado contra el Swagger/OpenAPI real del backend antes de implementar,
+no asumido):
+
+- `GET /api/appointments` — listado paginado, soporta `employeeId`, `customerId`, `status`,
+  `from` y `to` (todos opcionales, `from`/`to` como Instant ISO), `page`, `size`.
+- `GET /api/appointments/{id}` — detalle (expuesto vía `useAppointment`).
+- `POST /api/appointments` — creación (`customerId`, `employeeId`, `serviceId`, `startAt`,
+  `notes` opcional). El backend calcula `endAt` a partir de la duración del servicio; el
+  frontend nunca la modifica manualmente.
+- `PUT /api/appointments/{id}/reschedule` — reprograma con `{ startAt }` únicamente
+  (contrato real confirmado por Swagger, coincide con lo previsto en el enunciado).
+- `PATCH /api/appointments/{id}/status` — cambia estado con `{ status }` únicamente.
+- `PATCH /api/appointments/{id}/cancel` — cancela sin body (confirmado en Swagger).
+
+Todas las llamadas usan `apiClient` (`src/features/appointments/api/appointmentsApi.ts`),
+sin `fetch` ni instancias Axios adicionales.
+
+### Tipos
+
+`src/features/appointments/types/appointment.types.ts` define `AppointmentStatus` (los
+cinco valores reales del backend, sin inventar estados nuevos), `Appointment`,
+`CreateAppointmentRequest`, `RescheduleAppointmentRequest`,
+`UpdateAppointmentStatusRequest`, `AppointmentFilters` y `AppointmentFormValues`. Reutiliza
+`PageResponse<T>` global.
+
+### Query keys y hooks
+
+`appointmentsKeys` (`all`, `lists()`, `list(filters)`, `details()`, `detail(id)`) sigue la
+misma estructura que el resto de módulos. Hooks en `src/features/appointments/hooks/`:
+`useAppointments(filters)` (con `placeholderData: keepPreviousData` para no parpadear al
+paginar), `useAppointment(id)`, `useCreateAppointment()`, `useRescheduleAppointment()`,
+`useUpdateAppointmentStatus()`, `useCancelAppointment()`. Las cuatro mutaciones invalidan
+`appointmentsKeys.lists()` (+ `detail(id)` cuando corresponde) y `dashboardKeys.summary` —
+así "Citas de hoy" y "Próximas citas" del Dashboard quedan al día sin recargar la página, sin
+modificar el endpoint del Dashboard.
+
+### Reutilización de Customers, Employees y Services
+
+El formulario de creación no duplica ningún acceso a esos módulos: `CustomerSelect`
+reutiliza `useCustomers`, `ServiceSelect` reutiliza `useServices` (filtrando
+`service.active`) y `EmployeeSelect` reutiliza `useEmployees` (filtrando
+`employee.active`), los tres con `{ page: 0, size: 100 }` sin paginación propia en esta
+fase. El orden de selección es Customer → Service → Employee → fecha/hora → notas;
+`EmployeeSelect` filtra visualmente a los empleados cuyo `services[]` (ya incluido en
+`EmployeeResponse`) contiene el servicio elegido, y `AppointmentForm` reinicia
+`employeeId` cada vez que cambia el servicio para no enviar nunca un empleado incompatible.
+Si no hay empleados habilitados para el servicio elegido, se muestra el mensaje "No hay
+empleados habilitados para este servicio" en lugar del selector. No se inventa
+disponibilidad: el backend sigue siendo la única fuente de verdad para conflictos de
+horario. `AppointmentDetailDialog` también reutiliza `useCustomer` para mostrar el teléfono
+del cliente (no incluido en `AppointmentResponse`), sin duplicar el acceso a Customers.
+
+### Conversión de fecha y hora: local ↔ UTC (Instant)
+
+**Appointments usa `Instant` UTC** (`startAt`/`endAt`/`createdAt`/`updatedAt`), a diferencia
+de **Schedules, que usa `LocalTime`** (`HH:mm:ss`, sin timezone) — no deben confundirse ni
+tratarse con la misma lógica. `src/features/appointments/utils/dateConversion.ts` centraliza
+la conversión: `localDateTimeToInstant` (valor de un input `datetime-local` → ISO Instant
+con `dayjs(...).toISOString()`) y `instantToLocalDateTimeInput` (Instant del backend →
+`YYYY-MM-DDTHH:mm` para precargar un input `datetime-local`). Ninguna sección del código
+suma o resta horas manualmente ni asume `America/Asuncion`: la conversión se apoya
+enteramente en que `dayjs` interpreta cadenas sin sufijo `Z` como hora local del navegador y
+cadenas con `Z` como UTC. Para mostrar fechas/horas en el listado y en los diálogos se
+reutilizan `formatAppointmentDate` y `formatAppointmentTimeRange`, ya creados en el módulo
+Dashboard (`src/features/dashboard/utils/formatDashboardDate.ts`) — no se creó una segunda
+implementación.
+
+### Estados
+
+La traducción de estados (`PENDING → Pendiente`, `CONFIRMED → Confirmada`,
+`CANCELLED → Cancelada`, `COMPLETED → Completada`, `NO_SHOW → No asistió`) reutiliza
+`getAppointmentStatusConfig`, ya creado en Dashboard — no existe una segunda configuración.
+`src/features/appointments/utils/statusRules.ts` centraliza qué acciones permite cada
+estado (`canReschedule`, `canCancel`, `canChangeStatus`): `CANCELLED`, `COMPLETED` y
+`NO_SHOW` son terminales (ninguna acción); `PENDING` y `CONFIRMED` permiten las tres. Estas
+reglas solo controlan la UI (deshabilitan los íconos correspondientes en la tabla/cards); el
+backend sigue siendo la autoridad real y cualquier transición rechazada muestra su mensaje
+real.
+
+### Filtros
+
+`AppointmentsFilters` mantiene un estado local ("draft") con Customer, Employee, Status,
+Desde y Hasta, y solo dispara la consulta cuando el usuario presiona "Aplicar filtros" (no
+por cada cambio de campo). "Limpiar filtros" resetea el draft y vuelve a `page = 0`.
+`AppointmentsPage` diferencia el estado vacío general ("No hay citas registradas") del
+vacío por filtros ("No se encontraron citas" + acción "Limpiar filtros").
+
+### Creación, detalle, reprogramación, cambio de estado y cancelación
+
+- **Crear**: `AppointmentDialog` + `AppointmentForm` (React Hook Form + Zod). El schema
+  exige `customerId`/`employeeId`/`serviceId` positivos y `startAt` futuro respecto a la
+  hora local actual (`dayjs().isAfter/isBefore`, sin cálculos manuales de offset).
+  `normalizeAppointmentPayload` centraliza la conversión a `Instant` y el `trim`/`null` de
+  `notes`. 400/404/409 se muestran con `FormErrorAlert` dentro del diálogo, que no se
+  cierra ni limpia campos si falla.
+- **Detalle**: `AppointmentDetailDialog`, solo lectura (cliente, teléfono, empleado,
+  servicio, duración, precio, fecha, hora, estado, notas y fecha de creación), sin
+  `businessId` ni JSON crudo.
+- **Reprogramar**: `RescheduleAppointmentDialog` muestra el horario actual (fecha, hora,
+  servicio, empleado) y un único campo `newStartAt` (`datetime-local`, no permite fecha
+  pasada); conflictos de horario se muestran igual que en la creación.
+- **Cambiar estado**: `UpdateStatusDialog` ofrece `PENDING`/`CONFIRMED`/`COMPLETED`/
+  `NO_SHOW` (nunca `CANCELLED`, que usa el endpoint `cancel` dedicado) excluyendo el estado
+  actual de la cita.
+- **Cancelar**: `CancelAppointmentDialog` reutiliza `ConfirmDialog`, con el mensaje
+  incluyendo cliente, fecha, hora y servicio, y aclarando que el horario queda disponible
+  nuevamente.
+
+Los diálogos que remontan un formulario interno al reabrirse (`AppointmentDialog`,
+`RescheduleAppointmentDialog`, `UpdateStatusDialog`) usan una `key` incremental provista por
+`AppointmentsPage`, para no arrastrar valores de una apertura anterior — mismo patrón ya
+aplicado en Customers y Schedules.
+
+### Responsive
+
+Escritorio: `AppointmentsTable` con acciones (ver detalle, reprogramar, cambiar estado,
+cancelar) deshabilitadas según `getAppointmentStatusRules`. Móvil (`xs`, por debajo de
+`md`): `AppointmentCard` con las mismas acciones compactas, sin scroll horizontal global.
+Todos los diálogos pasan a `fullScreen` por debajo del breakpoint `sm`.
+
+### Nota de Fase 9B
+
+`AppointmentDetailDialog` ahora acepta `onReschedule`/`onChangeStatus`/`onCancel`
+opcionales: si se pasan, el diálogo agrega botones de acción rápida respetando
+`getAppointmentStatusRules` (usado por la vista Calendario, que no tiene fila de íconos).
+La vista Lista sigue funcionando exactamente igual que en la Fase 9A.
+
+## Agenda visual con FullCalendar
+
+Fase 9B agrega una vista de calendario profesional a `/appointments`, sin tocar el backend
+ni duplicar la capa de datos de Appointments (Fase 9A). La ruta ofrece ahora dos vistas
+alternables: **Calendario** (nueva, predeterminada) y **Lista** (la de la Fase 9A, intacta).
+
+### Dependencias instaladas
+
+Únicamente las cinco solicitadas, todas fijadas a la misma versión (`6.1.21`) para evitar
+conflictos de tipos entre paquetes:
+
+- `@fullcalendar/core` — motor del calendario.
+- `@fullcalendar/react` — wrapper de componente React (`<FullCalendar />`).
+- `@fullcalendar/daygrid` — vista de grilla mensual (`dayGridMonth`).
+- `@fullcalendar/timegrid` — vistas de grilla horaria (`timeGridWeek`, `timeGridDay`).
+- `@fullcalendar/interaction` — requerida por FullCalendar para `dateClick`/interacción del
+  toolbar, aunque esta fase no habilita `selectable`, `eventDrop` ni `eventResize`.
+
+**Nota de compatibilidad:** `npm install` sin fijar versión instaló inicialmente
+`@fullcalendar/react@7.0.2`, que depende internamente de `@fullcalendar/core@7.0.2` (y de
+`temporal-polyfill`, no solicitado) mientras el resto de paquetes quedó en `6.1.21` —esto
+rompía la compilación con decenas de errores de tipos duplicados. Se corrigió fijando
+`@fullcalendar/react@6.1.21` explícitamente; no se agregó ninguna dependencia fuera de las
+cinco pedidas. No se usaron `resource-timegrid`, `scheduler`, temas premium, `moment`,
+`luxon` ni `date-fns`.
+
+### Vistas: Calendario y Lista
+
+`AppointmentsPage` (`src/features/appointments/pages/AppointmentsPage.tsx`) es ahora un
+orquestador delgado: mantiene el estado compartido de los 5 diálogos (crear, detalle,
+reprogramar, cambiar estado, cancelar) y el snackbar, y renderiza `AppointmentViewSwitcher`
++ una de las dos vistas. Ambas vistas permanecen montadas simultáneamente una vez visitadas
+(alternadas con `display: none`, no con montaje/desmontaje) para que cada una conserve su
+propio estado de filtros/fecha al alternar — la vista Calendario se monta de entrada (es la
+predeterminada); la vista Lista recién se monta la primera vez que el usuario la visita, y
+desde entonces queda igual de persistente. La preferencia de vista se guarda en
+`localStorage` bajo la clave `appointment-view-mode` (`"calendar"` | `"list"`,
+`src/features/appointments/utils/appointmentViewPreference.ts`, mismo patrón que
+`sidebarPreference.ts` de `AppLayout`) — completamente separada de `tokenStorage`. El botón
+"Nueva cita" y los 5 diálogos viven una sola vez en `AppointmentsPage`, compartidos por
+ambas vistas: no existe una segunda implementación de creación/detalle/reprogramación/
+cambio de estado/cancelación para el calendario.
+
+`AppointmentDetailDialog` (compartido) ahora expone botones de acción rápida opcionales
+(Reprogramar / Cambiar estado / Cancelar) cuando se le pasan los handlers correspondientes
+— necesario porque la vista Calendario no tiene una fila de íconos como la tabla. Estos
+mismos handlers se pasan también desde `AppointmentsPage`, así que el detalle abierto desde
+la Lista obtiene el mismo beneficio sin duplicar código.
+
+### Consulta por rango visible
+
+`AppointmentsCalendar` nunca pide el historial completo de citas: usa el evento `datesSet`
+de FullCalendar (`src/features/appointments/utils/calendarDateRange.ts`,
+`toCalendarDateRange`) para tomar `arg.start`/`arg.end` (objetos `Date` ya correctos en
+tiempo local) y convertirlos a Instant ISO con `dayjs(date).toISOString()` — sin sumar ni
+restar horas ni días manualmente. Esos valores alimentan `from`/`to` de
+`useAppointments`, reutilizado sin cambios de lógica (solo se le agregó un `enabled`
+opcional para no disparar la consulta antes de que FullCalendar reporte su primer rango).
+Se pide `page = 0`, `size = 200` (`CALENDAR_QUERY_PAGE_SIZE`,
+`src/features/appointments/utils/calendarConfig.ts`) — suficiente para cubrir semana/día;
+si `totalElements` supera 200 se muestra una advertencia discreta (`Alert` amarillo) sin
+paginación visual dentro del calendario. La vista Lista conserva su paginación real sin
+cambios.
+
+### Mapeo Appointment → EventInput
+
+`mapAppointmentToCalendarEvent` (`src/features/appointments/utils/appointmentCalendarMapper.ts`)
+centraliza la transformación a `EventInput` de FullCalendar: `id` (string), `title`,
+`start`/`end` (los `Instant` del backend tal cual, sin tocar), `backgroundColor`/
+`borderColor` (color del Employee) y `classNames` según estado. `extendedProps` guarda el
+`Appointment` completo tipado como `AppointmentCalendarEventProps` (sin `any`) — se recupera
+en `eventClick`/`eventContent` con un único cast controlado contra el `Record<string, any>`
+que expone FullCalendar internamente (limitación de sus propios tipos, no del código propio).
+
+### Color por Employee
+
+`buildEmployeeColorMap` (`src/features/appointments/utils/employeeColorMap.ts`) arma un
+`Map<employeeId, color>` una sola vez por cambio de datos (`useMemo`) a partir de
+`useEmployees({ page: 0, size: 100 })` — mismos parámetros que `EmployeeSelect`, por lo que
+TanStack Query reutiliza la misma entrada de caché sin duplicar la petición. Cada evento
+busca su color en el Map (`O(1)`, sin loops por render); si el empleado no está en el mapa
+(por ejemplo si falló la carga de Employees) se usa `theme.palette.primary.main` como
+fallback, sin inventar ni persistir colores nuevos.
+
+### Estados y estilo visual
+
+El color de fondo/borde es siempre el del Employee. El estado se representa además con
+clases CSS centralizadas en `src/features/appointments/utils/calendarGlobalStyles.ts`
+(inyectadas una sola vez vía `<GlobalStyles>`, no dispersas por componentes):
+`CONFIRMED` no agrega clase (estado base); `PENDING` usa borde punteado (`dashed`);
+`NO_SHOW` usa borde punteado fino (`dotted`) + opacidad leve; `CANCELLED` reduce la opacidad
+y tacha el texto (`text-decoration: line-through`); `COMPLETED` reduce moderadamente la
+opacidad. Ningún estado baja de opacidad 0.55, para no volver los eventos ilegibles.
+
+### Apertura del detalle
+
+`eventClick` recupera el `Appointment` desde `extendedProps` y llama al mismo `onViewDetail`
+que usa la vista Lista, abriendo el `AppointmentDetailDialog` compartido — nunca navega a
+otra ruta ni crea un detalle paralelo. Desde ahí, Reprogramar/Cambiar estado/Cancelar abren
+los diálogos ya existentes de la Fase 9A; al tener éxito, sus mutaciones invalidan
+`appointmentsKeys.lists()` (que cubre tanto la query de la Lista como la del Calendario, sin
+código adicional) y `dashboardKeys.summary`, así que el calendario y el Dashboard quedan al
+día sin recargar la página.
+
+### Hover y accesibilidad
+
+En escritorio (`sm` y superior), `CalendarEventContent` envuelve cada evento en un
+`Tooltip` de Material UI con cliente/servicio/empleado/horario/estado
+(`disableTouchListener`/`disableFocusListener` para no interferir con el tap en móvil, donde
+el detalle completo se abre directamente con el clic). Cada evento también expone un
+`aria-label` descriptivo generado por `getAppointmentAriaLabel` (por ejemplo: "Cita de
+Cristian Benitez, Corte Premium, con Juan Gómez, de 15:00 a 16:00, estado Confirmada."), sin
+depender del hover para transmitir información esencial.
+
+### Filtros
+
+El Calendario tiene sus propios filtros (Empleado, Servicio, Estado —sin Customer, para no
+sobrecargar la barra) en `CalendarFilters`, con aplicación instantánea (sin botón "Aplicar",
+a diferencia de la Lista) y reutilizando `EmployeeSelect`/`ServiceSelect`/`StatusSelect` sin
+duplicar su acceso a datos. `StatusSelect` se extrajo de `AppointmentsFilters` para que
+ambas vistas compartan la misma configuración de estados —no existe una segunda traducción.
+**Decisión de diseño:** el Calendario y la Lista mantienen conjuntos de filtros separados
+(`CalendarFiltersValue` vs `AppointmentFiltersValue`), nombrados claramente y preservados de
+forma independiente al alternar de vista (ambas quedan montadas, ver arriba). No comparten
+`employeeId`/`status` entre sí en esta fase para mantener la implementación simple, tal como
+permite la consigna cuando compartirlos complica el desarrollo.
+
+### Filtro por Service (limitación real del backend)
+
+El contrato real de `GET /api/appointments` (confirmado en la Fase 9A vía Swagger) no
+acepta `serviceId` como parámetro. Por lo tanto el filtro de Servicio del Calendario **no**
+se envía al backend: se aplica en el frontend sobre los resultados ya traídos para el rango
+visible (`visibleAppointments` en `AppointmentsCalendar`). Esto es aceptable porque el
+calendario ya trae hasta 200 citas por rango; no se afirma en ningún lado que sea un filtro
+de servidor, y no se tocó la paginación real de la vista Lista.
+
+### Responsive
+
+`AppointmentsCalendar` decide su vista inicial según el breakpoint (`timeGridDay` en móvil,
+`timeGridWeek` en escritorio) con un `useState` de inicialización perezosa, y ajusta la
+vista activa a `timeGridDay` si el breakpoint cambia a móvil ya montado (efecto acotado a la
+bandera `isMobile`, sin loops). El usuario puede igualmente elegir Semana/Día/Mes en
+cualquier tamaño mediante el toggle del `CalendarToolbar`. `CalendarFilters` colapsa a un
+`Accordion` con badge de filtros activos por debajo de `sm`; en escritorio se muestra como
+grilla de 3 columnas. `height="auto"` evita una altura fija o infinita: el calendario crece
+según `slotMinTime`/`slotMaxTime` (7:00–21:00) y el scroll de la página maneja el resto.
+
+### Zona horaria
+
+`timeZone: "local"` le indica a FullCalendar que interprete los `Instant` UTC del backend y
+los muestre en la zona horaria del navegador, igual que el resto de Appointments — no se
+hardcodea `America/Asuncion` ni se hace aritmética manual de offsets.
+
+### Dark mode
+
+El calendario no importa ningún tema visual de FullCalendar (ni `themes/breezy`, `classic`,
+`forma`, etc., que vienen incluidos en el paquete pero no se usan). En su lugar,
+`getCalendarGlobalStyles` traduce el `Theme` de Material UI a las variables CSS oficiales de
+FullCalendar (`--fc-border-color`, `--fc-today-bg-color`, `--fc-neutral-bg-color`, etc.), así
+que se adapta automáticamente a `theme.palette.mode` sin colores hardcodeados — verificado
+visualmente en modo oscuro (el único disponible en el entorno de prueba, ya que el tema
+sigue `prefers-color-scheme` del sistema sin selector manual en la app).
+
+### Reservado para Fase 9B.2
+
+No se implementó (según lo pedido): `eventDrop`, `eventResize`, `selectable`/
+`selectMirror`, creación por clic o arrastre, columnas/recursos por empleado, scheduler
+premium, recurrencia, horarios laborales como background events, feriados/vacaciones,
+WebSockets, polling ni impresión/exportación.
