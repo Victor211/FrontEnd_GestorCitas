@@ -1,17 +1,20 @@
-import { Box, Stack } from "@mui/material";
+import { Box, Stack, Tab, Tabs } from "@mui/material";
 import { useState } from "react";
 import { ErrorAlert } from "../../../components/feedback/ErrorAlert";
 import { SuccessSnackbar } from "../../../components/feedback/SuccessSnackbar";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { BusinessInformationCard } from "../components/BusinessInformationCard";
-import { IntegrationsCard } from "../components/IntegrationsCard";
+import { IntegrationsOverview } from "../components/integrations/IntegrationsOverview";
 import { SettingsSkeleton } from "../components/SettingsSkeleton";
 import { SystemInformationCard } from "../components/SystemInformationCard";
 import { useBusinessSettings } from "../hooks/useBusinessSettings";
 
+type SettingsTab = "general" | "integrations";
+
 export function SettingsPage() {
   const settingsQuery = useBusinessSettings();
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
 
   return (
     <>
@@ -32,13 +35,25 @@ export function SettingsPage() {
       )}
 
       {settingsQuery.isSuccess && settingsQuery.data && (
-        <Stack spacing={3}>
-          <BusinessInformationCard settings={settingsQuery.data} onSuccess={setSnackbarMessage} />
-          <Box sx={{ display: "grid", gap: 3, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" } }}>
-            <IntegrationsCard settings={settingsQuery.data} />
-            <SystemInformationCard settings={settingsQuery.data} />
-          </Box>
-        </Stack>
+        <Box>
+          <Tabs
+            value={activeTab}
+            onChange={(_event, value: SettingsTab) => setActiveTab(value)}
+            sx={{ mb: 3, borderBottom: "1px solid", borderColor: "divider" }}
+          >
+            <Tab label="General" value="general" />
+            <Tab label="Integraciones" value="integrations" />
+          </Tabs>
+
+          {activeTab === "general" && (
+            <Stack spacing={3}>
+              <BusinessInformationCard settings={settingsQuery.data} onSuccess={setSnackbarMessage} />
+              <SystemInformationCard settings={settingsQuery.data} />
+            </Stack>
+          )}
+
+          {activeTab === "integrations" && <IntegrationsOverview settings={settingsQuery.data} />}
+        </Box>
       )}
 
       <SuccessSnackbar

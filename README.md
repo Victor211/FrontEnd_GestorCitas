@@ -1201,3 +1201,85 @@ abierto, conserva los valores tal como los dejó el usuario, y muestra el mensaj
 fallback genérico si el backend no envía uno específico) sin romper la página ni la consola.
 Como el enunciado de esta fase indica explícitamente "No modificar el backend", este
 comportamiento no se corrigió aquí; queda documentado para quien continúe con el backend.
+
+## Centro de Integraciones
+
+Fase 11A evoluciona la pequeña `IntegrationsCard` de la Fase 10 en una experiencia completa
+dentro de `/settings`, sin ruta nueva y sin backend nuevo: `SettingsPage` ahora usa `Tabs` de
+Material UI ("General" / "Integraciones") sobre la **misma** instancia de
+`useBusinessSettings()` ya existente — no se creó una segunda consulta, y cambiar de pestaña
+no dispara ningún request adicional (verificado: 0 llamadas de red al alternar pestañas).
+
+**Esta fase no conecta todavía un número real de WhatsApp.** Es exclusivamente informativa y
+preparatoria: no hay OAuth de Meta, no hay inputs de secretos, no hay conexión/desconexión
+real, no hay chat ni prueba directa de OpenAI.
+
+### WhatsApp — estado real, no inventado
+
+`WhatsAppIntegrationCard` (`src/features/settings/components/integrations/`) infiere el
+estado **exclusivamente** a partir del booleano real `whatsappConfigured` de
+`BusinessSettings` — el mismo tipo reutilizado de la Fase 10, sin duplicar `BusinessSettings`
+ni el estado del negocio. No se inventan `phoneNumberId`, `businessAccountId`, tokens ni
+estado de webhook/mensajes, porque el backend no expone esa granularidad hoy.
+
+Cuando `whatsappConfigured === true`, el texto es deliberadamente conservador: "Configuración
+básica detectada" — nunca se afirma que el webhook esté verificado ni que los mensajes
+funcionen, porque eso no puede probarse desde el frontend con los datos disponibles.
+
+`IntegrationSteps` representa el flujo conceptual (Cuenta de Meta → Número de WhatsApp →
+Webhook público → Backend → Asistente IA) como una secuencia de ícono + etiqueta, **sin**
+usar el componente `Stepper` de Material UI: `Stepper` implica visualmente pasos completados/
+activos, y como no podemos verificar cada paso individualmente, se optó por una
+representación neutra (`Stack` con íconos) para no comunicar un progreso que no está
+confirmado — decisión explícita para cumplir "no marcar pasos individuales como completados
+si no podemos probarlos".
+
+La sección "Próximos pasos" muestra la lista numerada de 6 pasos solo cuando
+`whatsappConfigured === false`; cuando es `true`, muestra el mensaje genérico pedido en el
+enunciado. La sección de webhook es puramente informativa (`GET`/`POST`,
+`{BACKEND_URL}/api/webhooks/whatsapp` como ejemplo visual, sin asumir `localhost` ni ninguna
+URL real).
+
+### OpenAI — sin estado inventado
+
+`AiIntegrationCard` no recibe `settings` como prop y no depende de ningún campo de
+`BusinessSettings` — no existe forma real de conocer el estado de OpenAI, así que el Chip
+siempre dice "Administrado por servidor" (severidad informativa, no éxito/error) y nunca
+"Conectado"/"Desconectado". Las capacidades listadas ("Responder saludos", "Informar
+servicios", "Consultar disponibilidad", "Reservar citas") son funcionalidades reales ya
+existentes en el producto, no aspiracionales.
+
+### Seguridad
+
+`SecurityNotice` explica en lenguaje simple que los secretos viven únicamente en el servidor,
+con un tooltip "¿Por qué?" para quien quiera más detalle. Verificado explícitamente
+(búsqueda de texto en toda la página): no aparece ningún token, secreto, API key, header
+`Authorization` ni JWT en ningún punto de la pantalla — no se agregó ningún input de tipo
+password ni almacenamiento en `localStorage` para estos datos.
+
+### Resumen general
+
+`IntegrationStatusCard` ("Estado de integraciones") muestra tres estados: WhatsApp
+(real, desde `whatsappConfigured`), Asistente IA (siempre "Administrado por servidor") y
+Backend ("Operativo"). Este último **solo se muestra si la pantalla ya cargó datos
+autenticados con éxito** — como `IntegrationsOverview` únicamente se renderiza dentro del
+`settingsQuery.isSuccess` ya existente en `SettingsPage`, "Operativo" nunca puede mostrarse
+en un estado de carga o error; no se agregó ningún health check adicional.
+
+### Reutilización y eliminación de duplicación
+
+Se eliminó por completo la `IntegrationsCard.tsx` original de la Fase 10 (reemplazada, no
+mantenida en paralelo) para no tener dos componentes mostrando el mismo estado de WhatsApp.
+`SystemInformationCard` (pestaña "General") conserva su fila de WhatsApp como parte de un
+resumen de datos generales del sistema (junto a ID/nombre/zona horaria) — es un dato de
+solo lectura entre varios, en una pestaña distinta, no una segunda experiencia de
+integraciones compitiendo con la nueva.
+
+### Responsive y dark mode
+
+Escritorio: `WhatsAppIntegrationCard` y `AiIntegrationCard` en grilla de 2 columnas,
+`IntegrationSteps` en fila horizontal con flechas entre pasos. Móvil: una columna,
+`IntegrationSteps` pasa a columna vertical (sin flechas, que solo tienen sentido en fila),
+sin scroll horizontal. Todos los colores (`Chip`, `Alert`, `Paper`, íconos) usan tokens del
+theme de Material UI, sin fondos ni colores hardcodeados — adapta a modo oscuro
+automáticamente igual que el resto de Settings.
