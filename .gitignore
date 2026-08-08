@@ -13,9 +13,14 @@ dist-ssr
 *.local
 
 # Environment variables
+# .env and .env.local variants are machine-specific and never committed.
+# .env.example, .env.development and .env.production are intentionally
+# tracked: they only ever contain public, non-secret configuration.
 .env
 .env.*
 !.env.example
+!.env.development
+!.env.production
 
 # Editor directories and files
 .vscode/*

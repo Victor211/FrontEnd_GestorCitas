@@ -1,5 +1,47 @@
 # FrontEnd_GestorCitas
 
+## Ejecución rápida
+
+Guía mínima para levantar el proyecto. Para el detalle completo ver
+[`docs/development.md`](docs/development.md) (desarrollo),
+[`docs/deployment.md`](docs/deployment.md) (deploy) y
+[`docs/environment.md`](docs/environment.md) (variables de entorno).
+
+### Requisitos
+
+- Node.js y npm (ver versiones validadas en `docs/development.md`).
+- Backend (`Backend_GestorCitas`) corriendo y accesible.
+
+### Desarrollo
+
+```bash
+npm install
+npm run dev
+```
+
+- Frontend: `http://localhost:${VITE_DEV_PORT}` (por defecto `5173`, configurable en
+  `.env.development` / `.env.local`).
+- Backend consumido: el que indique `VITE_API_BASE_URL` (ver `.env.development`).
+
+### Build
+
+```bash
+npm run build
+```
+
+Genera los archivos estáticos en `dist/`, listos para servir con un servidor web (Apache,
+Nginx, etc. — ver `docs/deployment.md`).
+
+### Preview local del build
+
+```bash
+npm run preview
+```
+
+Sirve `dist/` localmente para verificar el resultado del build. **No es un servidor de
+producción** — es solo para probar el build antes de desplegarlo; el deploy real lo sirve
+Apache (u otro servidor web) desde `dist/`, sin Node corriendo permanentemente.
+
 ## Autenticación del Frontend
 
 El módulo de autenticación integra el frontend con el backend real mediante la instancia
