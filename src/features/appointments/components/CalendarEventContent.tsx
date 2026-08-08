@@ -12,7 +12,14 @@ interface CalendarEventContentProps {
 export function CalendarEventContent({ arg }: CalendarEventContentProps) {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up("sm"));
-  const { appointment } = arg.event.extendedProps as AppointmentCalendarEventProps;
+  const { appointment } = arg.event.extendedProps as Partial<AppointmentCalendarEventProps>;
+
+  if (!appointment) {
+    // Select-mirror preview (and other FullCalendar-internal placeholder events)
+    // are rendered through eventContent too, but carry no appointment data.
+    return null;
+  }
+
   const statusConfig = getAppointmentStatusConfig(appointment.status);
 
   const content = (

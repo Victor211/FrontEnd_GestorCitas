@@ -1,11 +1,13 @@
 import type {
+  DateSelectArg,
   DatesSetArg,
   EventClickArg,
   EventContentArg,
+  EventDropArg,
 } from "@fullcalendar/core";
 import esLocale from "@fullcalendar/core/locales/es";
 import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin from "@fullcalendar/interaction";
+import interactionPlugin, { type DateClickArg } from "@fullcalendar/interaction";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import AddIcon from "@mui/icons-material/Add";
@@ -16,17 +18,22 @@ import {
   GlobalStyles,
   LinearProgress,
   Paper,
+  Snackbar,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
+import dayjs from "dayjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ErrorAlert } from "../../../components/feedback/ErrorAlert";
+import { getApiErrorMessage } from "../../../utils/getApiErrorMessage";
 import { useEmployees } from "../../employees/hooks/useEmployees";
 import { useAppointments } from "../hooks/useAppointments";
+import { useRescheduleAppointment } from "../hooks/useRescheduleAppointment";
 import type { AppointmentCalendarEventProps } from "../types/calendarEvent.types";
 import type { Appointment } from "../types/appointment.types";
 import { mapAppointmentToCalendarEvent } from "../utils/appointmentCalendarMapper";
 import {
+  CALENDAR_INTERACTION_CONFIG,
   CALENDAR_QUERY_PAGE_SIZE,
   CALENDAR_TIME_CONFIG,
   CALENDAR_VIEW_DAY,
@@ -34,7 +41,12 @@ import {
   CALENDAR_VIEW_WEEK,
   type CalendarViewType,
 } from "../utils/calendarConfig";
-import { toCalendarDateRange, type CalendarDateRange } from "../utils/calendarDateRange";
+import {
+  calendarDateToInstant,
+  calendarDateToLocalInput,
+  toCalendarDateRange,
+  type CalendarDateRange,
+} from "../utils/calendarDateRange";
 import { buildEmployeeColorMap } from "../utils/employeeColorMap";
 import { getCalendarGlobalStyles } from "../utils/calendarGlobalStyles";
 import { CalendarEventContent } from "./CalendarEventContent";
@@ -50,6 +62,10 @@ const EMPTY_CALENDAR_FILTERS: CalendarFiltersValue = {
   status: "",
 };
 
+const PAST_DATE_ERROR_MESSAGE = "No podés reprogramar una cita a una fecha pasada.";
+const CONCURRENT_DRAG_ERROR_MESSAGE =
+  "Ya se está reprogramando esta cita, esperá a que termine.";
+
 function isCalendarViewType(value: string): value is CalendarViewType {
   return (
     value === CALENDAR_VIEW_WEEK || value === CALENDAR_VIEW_DAY || value === CALENDAR_VIEW_MONTH
@@ -58,10 +74,15 @@ function isCalendarViewType(value: string): value is CalendarViewType {
 
 interface AppointmentsCalendarProps {
   onViewDetail: (appointment: Appointment) => void;
-  onCreateClick: () => void;
+  onCreateClick: (initialStartAt?: string) => void;
+  onSuccess: (message: string) => void;
 }
 
-export function AppointmentsCalendar({ onViewDetail, onCreateClick }: AppointmentsCalendarProps) {
+export function AppointmentsCalendar({
+  onViewDetail,
+  onCreateClick,
+  onSuccess,
+}: AppointmentsCalendarProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const calendarRef = useRef<FullCalendar>(null);
@@ -72,6 +93,16 @@ export function AppointmentsCalendar({ onViewDetail, onCreateClick }: Appointmen
   const [activeView, setActiveView] = useState<CalendarViewType>(() =>
     isMobile ? CALENDAR_VIEW_DAY : CALENDAR_VIEW_WEEK,
   );
+  const [pendingDragIds, setPendingDragIds] = useState<Set<number>>(new Set());
+  const [dragError, setDragError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (dragError === null) {
+      return;
+    }
+    const timer = setTimeout(() => setDragError(null), 6000);
+    return () => clearTimeout(timer);
+  }, [dragError]);
 
   useEffect(() => {
     if (!isMobile) {
@@ -101,6 +132,8 @@ export function AppointmentsCalendar({ onViewDetail, onCreateClick }: Appointmen
     { enabled: range !== null },
   );
 
+  const rescheduleMutation = useRescheduleAppointment();
+
   const visibleAppointments = useMemo(() => {
     const content = appointmentsQuery.data?.content ?? [];
     return filters.serviceId
@@ -110,10 +143,15 @@ export function AppointmentsCalendar({ onViewDetail, onCreateClick }: Appointmen
 
   const events = useMemo(
     () =>
-      visibleAppointments.map((appointment) =>
-        mapAppointmentToCalendarEvent(appointment, employeeColors, theme.palette.primary.main),
-      ),
-    [visibleAppointments, employeeColors, theme.palette.primary.main],
+      visibleAppointments.map((appointment) => {
+        const event = mapAppointmentToCalendarEvent(
+          appointment,
+          employeeColors,
+          theme.palette.primary.main,
+        );
+        return isMobile ? { ...event, startEditable: false } : event;
+      }),
+    [visibleAppointments, employeeColors, theme.palette.primary.main, isMobile],
   );
 
   const isOverLimit = (appointmentsQuery.data?.totalElements ?? 0) > CALENDAR_QUERY_PAGE_SIZE;
@@ -130,6 +168,56 @@ export function AppointmentsCalendar({ onViewDetail, onCreateClick }: Appointmen
   const handleEventClick = (arg: EventClickArg) => {
     const { appointment } = arg.event.extendedProps as AppointmentCalendarEventProps;
     onViewDetail(appointment);
+  };
+
+  const handleDateClick = (arg: DateClickArg) => {
+    onCreateClick(arg.allDay ? undefined : calendarDateToLocalInput(arg.date));
+  };
+
+  const handleSelect = (arg: DateSelectArg) => {
+    onCreateClick(arg.allDay ? undefined : calendarDateToLocalInput(arg.start));
+    getApi()?.unselect();
+  };
+
+  const handleEventDrop = (info: EventDropArg) => {
+    const appointmentId = Number(info.event.id);
+    const newStart = info.event.start;
+
+    if (!newStart) {
+      info.revert();
+      return;
+    }
+
+    if (pendingDragIds.has(appointmentId)) {
+      info.revert();
+      setDragError(CONCURRENT_DRAG_ERROR_MESSAGE);
+      return;
+    }
+
+    if (dayjs(newStart).isBefore(dayjs())) {
+      info.revert();
+      setDragError(PAST_DATE_ERROR_MESSAGE);
+      return;
+    }
+
+    setPendingDragIds((prev) => new Set(prev).add(appointmentId));
+    rescheduleMutation.mutate(
+      { id: appointmentId, request: { startAt: calendarDateToInstant(newStart) } },
+      {
+        onSuccess: () => onSuccess("Cita reprogramada correctamente."),
+        onError: (error) => {
+          info.revert();
+          setDragError(getApiErrorMessage(error));
+        },
+        onSettled: () => {
+          setPendingDragIds((prev) => {
+            const next = new Set(prev);
+            next.delete(appointmentId);
+            return next;
+          });
+        },
+      },
+    );
   };
 
   const getApi = () => calendarRef.current?.getApi();
@@ -181,7 +269,7 @@ export function AppointmentsCalendar({ onViewDetail, onCreateClick }: Appointmen
               color="inherit"
               size="small"
               startIcon={<AddIcon fontSize="small" />}
-              onClick={onCreateClick}
+              onClick={() => onCreateClick()}
             >
               Nueva cita
             </Button>
@@ -219,13 +307,25 @@ export function AppointmentsCalendar({ onViewDetail, onCreateClick }: Appointmen
             timeZone="local"
             height="auto"
             {...CALENDAR_TIME_CONFIG}
+            {...CALENDAR_INTERACTION_CONFIG}
+            selectable={!isMobile && CALENDAR_INTERACTION_CONFIG.selectable}
+            eventStartEditable={!isMobile && CALENDAR_INTERACTION_CONFIG.eventStartEditable}
             events={events}
             eventContent={(arg: EventContentArg) => <CalendarEventContent arg={arg} />}
             eventClick={handleEventClick}
+            dateClick={handleDateClick}
+            select={handleSelect}
+            eventDrop={handleEventDrop}
             datesSet={handleDatesSet}
           />
         </Paper>
       </Box>
+
+      <Snackbar open={dragError !== null} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+        <Alert severity="error" variant="filled" sx={{ width: "100%" }}>
+          {dragError}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

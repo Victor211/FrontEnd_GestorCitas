@@ -100,7 +100,7 @@ export function AppointmentsListView({
                 : "Todavía no cargaste citas para tu negocio."
             }
             actionLabel={isFiltersActive ? "Limpiar filtros" : "Crear primera cita"}
-            onAction={isFiltersActive ? handleClearFilters : onCreateClick}
+            onAction={isFiltersActive ? handleClearFilters : () => onCreateClick()}
           />
         ) : (
           <Paper

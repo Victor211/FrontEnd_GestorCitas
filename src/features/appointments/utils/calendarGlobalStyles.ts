@@ -10,6 +10,7 @@ export function getCalendarGlobalStyles(theme: Theme) {
       "--fc-today-bg-color": alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.16 : 0.08),
       "--fc-now-indicator-color": theme.palette.error.main,
       "--fc-small-font-size": theme.typography.pxToRem(11),
+      "--fc-highlight-color": alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.3 : 0.2),
       color: theme.palette.text.primary,
     },
     ".appointments-calendar .fc-timegrid-slot-label, .appointments-calendar .fc-col-header-cell-cushion":
@@ -17,8 +18,14 @@ export function getCalendarGlobalStyles(theme: Theme) {
         color: theme.palette.text.secondary,
       },
     ".appointments-calendar .fc-event": {
-      cursor: "pointer",
+      cursor: "grab",
       borderWidth: 1,
+    },
+    ".appointments-calendar .fc-event.fc-appointment-locked": {
+      cursor: "default",
+    },
+    ".appointments-calendar .fc-event.fc-event-dragging": {
+      cursor: "grabbing",
     },
     ".appointments-calendar .fc-appointment-pending": {
       borderStyle: "dashed",

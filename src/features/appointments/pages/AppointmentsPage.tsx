@@ -20,6 +20,7 @@ export function AppointmentsPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createKey, setCreateKey] = useState(0);
+  const [createInitialStartAt, setCreateInitialStartAt] = useState<string | undefined>(undefined);
   const [detailTarget, setDetailTarget] = useState<Appointment | null>(null);
   const [rescheduleTarget, setRescheduleTarget] = useState<Appointment | null>(null);
   const [rescheduleKey, setRescheduleKey] = useState(0);
@@ -36,8 +37,9 @@ export function AppointmentsPage() {
     }
   };
 
-  const handleCreateClick = () => {
+  const handleCreateClick = (initialStartAt?: string) => {
     setCreateKey((key) => key + 1);
+    setCreateInitialStartAt(initialStartAt);
     setCreateOpen(true);
   };
   const handleCreateClose = () => setCreateOpen(false);
@@ -70,13 +72,17 @@ export function AppointmentsPage() {
         sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", sm: "center" }, mb: 2 }}
       >
         <AppointmentViewSwitcher value={viewMode} onChange={handleViewModeChange} />
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateClick}>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleCreateClick()}>
           Nueva cita
         </Button>
       </Stack>
 
       <Box sx={{ display: viewMode === "calendar" ? "block" : "none" }}>
-        <AppointmentsCalendar onViewDetail={handleViewDetail} onCreateClick={handleCreateClick} />
+        <AppointmentsCalendar
+          onViewDetail={handleViewDetail}
+          onCreateClick={handleCreateClick}
+          onSuccess={setSnackbarMessage}
+        />
       </Box>
 
       {hasVisitedList && (
@@ -94,6 +100,7 @@ export function AppointmentsPage() {
       <AppointmentDialog
         open={createOpen}
         dialogKey={createKey}
+        initialStartAt={createInitialStartAt}
         onClose={handleCreateClose}
         onSuccess={setSnackbarMessage}
       />

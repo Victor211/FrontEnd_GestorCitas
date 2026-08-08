@@ -6,6 +6,7 @@ import {
 } from "../../dashboard/utils/formatDashboardDate";
 import type { AppointmentCalendarEventProps } from "../types/calendarEvent.types";
 import type { Appointment, AppointmentStatus } from "../types/appointment.types";
+import { canRescheduleAppointment } from "./statusRules";
 import type { EmployeeColorMap } from "./employeeColorMap";
 
 const STATUS_CLASS_NAMES: Record<AppointmentStatus, string[]> = {
@@ -28,6 +29,10 @@ export function mapAppointmentToCalendarEvent(
 ): EventInput {
   const color = employeeColors.get(appointment.employeeId) ?? fallbackColor;
   const extendedProps: AppointmentCalendarEventProps = { appointment };
+  const editable = canRescheduleAppointment(appointment.status);
+  const classNames = editable
+    ? STATUS_CLASS_NAMES[appointment.status]
+    : [...STATUS_CLASS_NAMES[appointment.status], "fc-appointment-locked"];
 
   return {
     id: String(appointment.id),
@@ -36,7 +41,9 @@ export function mapAppointmentToCalendarEvent(
     end: appointment.endAt,
     backgroundColor: color,
     borderColor: color,
-    classNames: STATUS_CLASS_NAMES[appointment.status],
+    classNames,
+    startEditable: editable,
+    durationEditable: false,
     extendedProps,
   };
 }

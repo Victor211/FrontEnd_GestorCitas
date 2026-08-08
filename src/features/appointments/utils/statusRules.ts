@@ -17,3 +17,7 @@ const STATUS_RULES: Record<AppointmentStatus, AppointmentStatusRules> = {
 export function getAppointmentStatusRules(status: AppointmentStatus): AppointmentStatusRules {
   return STATUS_RULES[status];
 }
+
+export function canRescheduleAppointment(status: AppointmentStatus): boolean {
+  return getAppointmentStatusRules(status).canReschedule;
+}

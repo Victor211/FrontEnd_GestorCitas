@@ -26,6 +26,7 @@ const FORM_ID = "appointment-form";
 interface AppointmentDialogProps {
   open: boolean;
   dialogKey: number;
+  initialStartAt?: string;
   onClose: () => void;
   onSuccess: (message: string) => void;
 }
@@ -33,12 +34,16 @@ interface AppointmentDialogProps {
 export function AppointmentDialog({
   open,
   dialogKey,
+  initialStartAt,
   onClose,
   onSuccess,
 }: AppointmentDialogProps) {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const createMutation = useCreateAppointment();
+  const defaultValues = initialStartAt
+    ? { ...appointmentFormDefaultValues, startAt: initialStartAt }
+    : appointmentFormDefaultValues;
 
   const handleClose = () => {
     if (createMutation.isPending) {
@@ -90,7 +95,7 @@ export function AppointmentDialog({
           <AppointmentForm
             key={dialogKey}
             formId={FORM_ID}
-            defaultValues={appointmentFormDefaultValues}
+            defaultValues={defaultValues}
             onSubmit={handleSubmit}
             disabled={createMutation.isPending}
           />

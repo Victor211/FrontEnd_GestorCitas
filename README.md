@@ -957,9 +957,120 @@ que se adapta automáticamente a `theme.palette.mode` sin colores hardcodeados �
 visualmente en modo oscuro (el único disponible en el entorno de prueba, ya que el tema
 sigue `prefers-color-scheme` del sistema sin selector manual en la app).
 
-### Reservado para Fase 9B.2
+### Reservado para fases posteriores
 
-No se implementó (según lo pedido): `eventDrop`, `eventResize`, `selectable`/
-`selectMirror`, creación por clic o arrastre, columnas/recursos por empleado, scheduler
-premium, recurrencia, horarios laborales como background events, feriados/vacaciones,
-WebSockets, polling ni impresión/exportación.
+Al cierre de la Fase 9B.1: `eventDrop`, `selectable`/`selectMirror` y creación por clic o
+arrastre quedaban fuera de alcance. La Fase 9B.2 (ver sección
+["Agenda interactiva"](#agenda-interactiva) más abajo) los agregó. Lo que sigue reservado:
+`eventResize` (explícitamente prohibido — la duración depende del Service), columnas/
+recursos por empleado, scheduler premium, recurrencia, horarios laborales como background
+events, feriados/vacaciones, WebSockets, polling ni impresión/exportación.
+
+## Agenda interactiva
+
+Fase 9B.2 agrega creación desde el calendario y reprogramación por drag & drop, sin tocar
+el backend, sin agregar dependencias y sin duplicar la mutation de reprogramar ya usada por
+`RescheduleAppointmentDialog` desde la Fase 9A.
+
+**"Las citas no pueden cambiar su duración mediante el calendario. La duración depende del
+servicio asociado."**
+
+### Configuración centralizada
+
+`CALENDAR_INTERACTION_CONFIG` (`src/features/appointments/utils/calendarConfig.ts`)
+centraliza los flags de interacción en un solo lugar: `selectable: true`,
+`selectMirror: true`, `eventStartEditable: true`, `eventDurationEditable: false`,
+`eventResizableFromStart: false`. `eventDurationEditable: false` es lo que efectivamente
+deshabilita el resize (no existe una prop `eventResize` que "apagar": simplemente nunca se
+agregó el callback ni se habilitó el redimensionado). Además, cada evento mapeado
+(`mapAppointmentToCalendarEvent`) lleva su propio `startEditable`/`durationEditable`
+calculados a partir de `canRescheduleAppointment(status)` — así un evento con estado
+terminal nunca es arrastrable, sin depender únicamente de la configuración global.
+
+### Creación desde el calendario
+
+Dos caminos abren el mismo `AppointmentDialog` ya existente (sin formulario nuevo):
+
+- **`dateClick`** — clic simple en un horario de las vistas semana/día precarga `startAt`
+  con la fecha/hora exacta clickeada.
+- **`select`** — selección de un rango (clic + arrastre) usa únicamente `selectInfo.start`;
+  la duración del rango seleccionado se ignora, porque la duración real siempre depende del
+  Service elegido en el formulario. Tras abrir el diálogo se limpia la selección
+  (`calendarApi.unselect()`).
+
+En ambos casos, si el clic/selección ocurre en la vista mensual (`arg.allDay === true`, sin
+componente de hora), el formulario se abre con `startAt` vacío en lugar de inventar una
+hora — un input `datetime-local` no puede representar "solo fecha, sin hora" de forma
+confiable, así que se prefiere dejarlo en blanco para que el usuario la complete.
+
+`AppointmentDialog` ahora acepta un `initialStartAt` opcional; si no se pasa (botón "Nueva
+cita" normal), el formulario se comporta exactamente igual que en la Fase 9A. El valor de
+`Date` que entrega FullCalendar se convierte a formato `datetime-local` reutilizando
+`instantToLocalDateTimeInput` (no se duplicó esa utilidad): `calendarDateToLocalInput`
+(`src/features/appointments/utils/calendarDateRange.ts`) simplemente hace
+`instantToLocalDateTimeInput(dayjs(date).toISOString())`, sin aritmética manual de horas.
+
+### Drag & drop para reprogramar
+
+`eventDrop` reutiliza `useRescheduleAppointment()` — la misma mutation que usa
+`RescheduleAppointmentDialog` — no existe una mutation ni una API paralela para el drag.
+Flujo (`handleEventDrop` en `AppointmentsCalendar.tsx`):
+
+1. Si `info.event.start` es `null`, o la cita ya tiene un drag pendiente
+   (`pendingDragIds`, un `Set<number>` que evita doble drop concurrente sobre la misma
+   cita), se revierte inmediatamente con `info.revert()`.
+2. Si el nuevo horario es pasado (`dayjs(newStart).isBefore(dayjs())`), se revierte
+   localmente con un mensaje claro — esto es una ayuda visual, no reemplaza la validación
+   real del backend, que igual se ejecuta en cualquier otro caso.
+3. `calendarDateToInstant(newStart)` (mismo archivo que el helper de arriba, wrapper de
+   `dayjs(date).toISOString()`) convierte el nuevo inicio a Instant UTC — sin timezone
+   hardcodeada, sin offsets manuales.
+4. Se llama `rescheduleAppointment` con ese `startAt`; la duración nunca se toca, FullCalendar
+   la mantiene automáticamente porque `eventDurationEditable` es `false` (el evento solo se
+   traslada, nunca se estira).
+5. Éxito → Snackbar compartido ("Cita reprogramada correctamente"), y la invalidación ya
+   existente de `useRescheduleAppointment` (`appointmentsKeys.lists()` + `detail(id)` +
+   `dashboardKeys.summary`) sincroniza calendario, Lista y Dashboard sin código adicional.
+6. Error (409 superposición, 400 fuera de horario, u otro) → `info.revert()` deja la cita en
+   su posición original, y se muestra `ApiError.message` real (nunca JSON crudo) en un
+   Snackbar de error propio del calendario.
+
+No se implementó optimistic update manual: el movimiento visual que hace FullCalendar
+durante el drag ya funciona como estado "optimista" temporal; si el backend rechaza, se
+revierte. No se modifica la cache de TanStack Query a mano en ningún punto de este flujo.
+
+### Reglas por estado
+
+`canRescheduleAppointment(status)` (`src/features/appointments/utils/statusRules.ts`) es un
+wrapper de una línea sobre `getAppointmentStatusRules(status).canReschedule` — no duplica la
+tabla de reglas ya usada por la vista Lista para deshabilitar el ícono de reprogramar.
+`CONFIRMED`/`PENDING` son arrastrables (según las reglas ya vigentes desde la Fase 9A);
+`CANCELLED`/`COMPLETED`/`NO_SHOW` no lo son, verificado en vivo arrastrando una cita
+`CANCELLED`: el evento no se mueve y no se dispara ninguna petición de red.
+
+### Responsive
+
+En `isMobile` (breakpoint `sm` de Material UI), se deshabilita `selectable` (la selección de
+rango entra en conflicto con el scroll táctil) y `eventStartEditable` global, y además cada
+evento mapeado fuerza `startEditable: false` cuando `isMobile` es verdadero — un evento no
+puede ignorar la restricción de móvil aunque su estado individual lo permitiría en
+escritorio. `dateClick` queda como vía principal de creación en móvil (funciona igual de
+bien con un tap que con un clic). La reprogramación en móvil se hace desde
+`AppointmentDetailDialog` → "Reprogramar" (accesible sin drag).
+
+### Accesibilidad
+
+El drag & drop nunca es el único camino para reprogramar: el botón "Reprogramar" del
+`AppointmentDetailDialog` (accesible por teclado y lector de pantalla) sigue disponible para
+toda cita reprogramable, en escritorio y en móvil. No se agregó ningún control cuya única
+vía de activación sea el arrastre con mouse.
+
+### Nota técnica sobre `eventContent` y el select-mirror
+
+`selectMirror: true` hace que FullCalendar renderice una previsualización ("mirror") del
+rango que se está seleccionando usando el mismo pipeline de `eventContent` que los eventos
+reales — pero ese mirror no tiene `extendedProps.appointment` (no es una cita real).
+`CalendarEventContent` ahora hace una guarda explícita (`if (!appointment) return null;`)
+antes de leer cualquier propiedad de la cita — sin esta guarda, seleccionar un rango
+producía un `TypeError` real (`Cannot read properties of undefined`) que rompía toda la
+página. Corregido y verificado durante las pruebas manuales de esta fase.

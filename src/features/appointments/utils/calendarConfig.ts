@@ -8,6 +8,14 @@ export const CALENDAR_TIME_CONFIG = {
   scrollTime: "08:00:00",
 } as const;
 
+export const CALENDAR_INTERACTION_CONFIG = {
+  selectable: true,
+  selectMirror: true,
+  eventStartEditable: true,
+  eventDurationEditable: false,
+  eventResizableFromStart: false,
+} as const;
+
 export const CALENDAR_QUERY_PAGE_SIZE = 200;
 
 export const CALENDAR_VIEW_WEEK = "timeGridWeek";
