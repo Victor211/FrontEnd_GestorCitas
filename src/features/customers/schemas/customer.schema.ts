@@ -44,8 +44,8 @@ export const customerFormDefaultValues: CustomerFormValues = {
 
 export function toCustomerFormValues(customer: Customer): CustomerFormValues {
   return {
-    firstName: customer.firstName,
-    lastName: customer.lastName,
+    firstName: customer.firstName ?? "",
+    lastName: customer.lastName ?? "",
     phone: customer.phone,
     email: customer.email ?? "",
     notes: customer.notes ?? "",

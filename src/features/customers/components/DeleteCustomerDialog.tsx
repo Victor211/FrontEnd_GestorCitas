@@ -24,6 +24,10 @@ export function DeleteCustomerDialog({
     onClose();
   };
 
+  const customerName = customer
+    ? `${customer.firstName ?? ""} ${customer.lastName ?? ""}`.trim()
+    : "";
+
   const handleConfirm = () => {
     if (!customer) {
       return;
@@ -31,15 +35,11 @@ export function DeleteCustomerDialog({
 
     deleteMutation.mutate(customer.id, {
       onSuccess: () => {
-        onSuccess(
-          `Cliente "${customer.firstName} ${customer.lastName}" eliminado correctamente.`,
-        );
+        onSuccess(`Cliente "${customerName}" eliminado correctamente.`);
         onClose();
       },
     });
   };
-
-  const customerName = customer ? `${customer.firstName} ${customer.lastName}` : "";
 
   return (
     <ConfirmDialog

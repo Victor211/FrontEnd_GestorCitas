@@ -11,7 +11,7 @@ interface CustomerCardProps {
 }
 
 export function CustomerCard({ customer, onEdit, onDelete }: CustomerCardProps) {
-  const fullName = `${customer.firstName} ${customer.lastName}`;
+  const fullName = `${customer.firstName ?? ""} ${customer.lastName ?? ""}`.trim();
 
   return (
     <Card component="li" variant="outlined" sx={{ borderRadius: 2, listStyle: "none" }}>

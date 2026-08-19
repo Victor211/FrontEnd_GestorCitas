@@ -39,7 +39,7 @@ export function CustomersTable({ customers, onEdit, onDelete }: CustomersTablePr
         </TableHead>
         <TableBody>
           {customers.map((customer) => {
-            const fullName = `${customer.firstName} ${customer.lastName}`;
+            const fullName = `${customer.firstName ?? ""} ${customer.lastName ?? ""}`.trim();
             return (
               <TableRow key={customer.id} hover>
                 <TableCell>
