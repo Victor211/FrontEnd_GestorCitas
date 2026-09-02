@@ -7,5 +7,6 @@ export const ROUTES = {
   CUSTOMERS: "/customers",
   SCHEDULES: "/schedules",
   APPOINTMENTS: "/appointments",
+  CONVERSATIONS: "/conversations",
   SETTINGS: "/settings",
 } as const;

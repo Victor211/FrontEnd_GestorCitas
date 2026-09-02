@@ -1,5 +1,6 @@
 import type { SvgIconComponent } from "@mui/icons-material";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
+import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import DesignServicesOutlinedIcon from "@mui/icons-material/DesignServicesOutlined";
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
@@ -51,6 +52,13 @@ export const navigationItems: NavigationItemConfig[] = [
     path: ROUTES.CUSTOMERS,
     icon: PeopleAltOutlinedIcon,
     breadcrumb: "Clientes",
+  },
+  {
+    id: "conversations",
+    label: "Conversaciones",
+    path: ROUTES.CONVERSATIONS,
+    icon: ChatOutlinedIcon,
+    breadcrumb: "Conversaciones",
   },
   {
     id: "schedules",
