@@ -1,12 +1,32 @@
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { Box, IconButton, Stack, Typography } from "@mui/material";
-import { useEffect, useRef } from "react";
+import SendIcon from "@mui/icons-material/Send";
+import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
+import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  IconButton,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
+import { useEffect, useRef, useState } from "react";
+import { ConfirmDialog } from "../../../components/feedback/ConfirmDialog";
 import { ErrorAlert } from "../../../components/feedback/ErrorAlert";
 import { FullScreenLoader } from "../../../components/feedback/FullScreenLoader";
+import { getApiErrorMessage } from "../../../utils/getApiErrorMessage";
 import { useConversationMessages } from "../hooks/useConversationMessages";
+import { useReleaseConversation } from "../hooks/useReleaseConversation";
+import { useSendConversationMessage } from "../hooks/useSendConversationMessage";
+import { useTakeoverConversation } from "../hooks/useTakeoverConversation";
 import type { ConversationSummary } from "../types/conversation.types";
-import { getConversationDisplayName } from "../utils/conversationDisplay";
+import { getConversationDisplayName, getConversationModeLabel } from "../utils/conversationDisplay";
 import { MessageBubble } from "./MessageBubble";
+
+const MESSAGE_MAX_LENGTH = 4096;
 
 interface ConversationChatProps {
   conversation: ConversationSummary;
@@ -15,9 +35,17 @@ interface ConversationChatProps {
 
 export function ConversationChat({ conversation, onBack }: ConversationChatProps) {
   const messagesQuery = useConversationMessages(conversation.id);
+  const takeoverMutation = useTakeoverConversation();
+  const releaseMutation = useReleaseConversation();
+  const sendMutation = useSendConversationMessage();
+
+  const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
+  const [content, setContent] = useState("");
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const displayName = getConversationDisplayName(conversation);
   const showPhoneSubtitle = conversation.customerName?.trim() && conversation.senderPhone;
+  const isHuman = conversation.mode === "HUMAN";
 
   useEffect(() => {
     if (messagesQuery.isSuccess) {
@@ -25,13 +53,50 @@ export function ConversationChat({ conversation, onBack }: ConversationChatProps
     }
   }, [messagesQuery.isSuccess, messagesQuery.data]);
 
+  const handleTakeover = () => {
+    takeoverMutation.mutate(conversation.id);
+  };
+
+  const handleCloseReleaseDialog = () => {
+    if (releaseMutation.isPending) {
+      return;
+    }
+    releaseMutation.reset();
+    setReleaseDialogOpen(false);
+  };
+
+  const handleConfirmRelease = () => {
+    releaseMutation.mutate(conversation.id, {
+      onSuccess: () => setReleaseDialogOpen(false),
+    });
+  };
+
+  const handleSend = () => {
+    const trimmed = content.trim();
+    if (!trimmed || sendMutation.isPending) {
+      return;
+    }
+
+    sendMutation.mutate(
+      { conversationId: conversation.id, content: trimmed },
+      {
+        onSuccess: () => {
+          setContent("");
+          requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ block: "end" }));
+        },
+      },
+    );
+  };
+
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column", minWidth: 0 }}>
       <Stack
         direction="row"
-        spacing={1}
         sx={{
+          flexWrap: "wrap",
           alignItems: "center",
+          columnGap: 1,
+          rowGap: 1,
           px: 2,
           py: 1.5,
           borderBottom: "1px solid",
@@ -48,7 +113,7 @@ export function ConversationChat({ conversation, onBack }: ConversationChatProps
             <ArrowBackIcon />
           </IconButton>
         )}
-        <Box sx={{ minWidth: 0 }}>
+        <Box sx={{ minWidth: 0, flexGrow: 1 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
             {displayName}
           </Typography>
@@ -58,7 +123,52 @@ export function ConversationChat({ conversation, onBack }: ConversationChatProps
             </Typography>
           )}
         </Box>
+
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexShrink: 0 }}>
+          <Chip
+            icon={isHuman ? <SupportAgentOutlinedIcon /> : <SmartToyOutlinedIcon />}
+            label={getConversationModeLabel(conversation.mode)}
+            size="small"
+            color={isHuman ? "warning" : "default"}
+            variant={isHuman ? "filled" : "outlined"}
+          />
+          {isHuman ? (
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => setReleaseDialogOpen(true)}
+              disabled={releaseMutation.isPending}
+            >
+              Devolver al bot
+            </Button>
+          ) : (
+            <Button
+              size="small"
+              variant="contained"
+              onClick={handleTakeover}
+              disabled={takeoverMutation.isPending}
+              startIcon={
+                takeoverMutation.isPending ? (
+                  <CircularProgress size={14} color="inherit" />
+                ) : undefined
+              }
+            >
+              Tomar conversación
+            </Button>
+          )}
+        </Stack>
       </Stack>
+
+      {takeoverMutation.isError && (
+        <Alert
+          severity="error"
+          role="alert"
+          sx={{ mx: 2, mt: 1.5 }}
+          onClose={() => takeoverMutation.reset()}
+        >
+          {getApiErrorMessage(takeoverMutation.error)}
+        </Alert>
+      )}
 
       <Box sx={{ flexGrow: 1, overflowY: "auto", p: 2 }}>
         {messagesQuery.isPending && <FullScreenLoader />}
@@ -82,19 +192,76 @@ export function ConversationChat({ conversation, onBack }: ConversationChatProps
         )}
       </Box>
 
-      <Box
-        sx={{
-          px: 2,
-          py: 1,
-          borderTop: "1px solid",
-          borderColor: "divider",
-          textAlign: "center",
-        }}
-      >
-        <Typography variant="caption" color="text.secondary">
-          Modo solo lectura
-        </Typography>
-      </Box>
+      {isHuman ? (
+        <Box
+          sx={{
+            px: 2,
+            py: 1.5,
+            borderTop: "1px solid",
+            borderColor: "divider",
+            display: "flex",
+            gap: 1,
+            alignItems: "flex-end",
+          }}
+        >
+          <TextField
+            value={content}
+            onChange={(event) => setContent(event.target.value)}
+            placeholder="Escribí un mensaje..."
+            aria-label="Mensaje para el cliente"
+            multiline
+            minRows={1}
+            maxRows={5}
+            fullWidth
+            size="small"
+            disabled={sendMutation.isPending}
+            slotProps={{ htmlInput: { maxLength: MESSAGE_MAX_LENGTH } }}
+            error={sendMutation.isError}
+            helperText={sendMutation.isError ? getApiErrorMessage(sendMutation.error) : undefined}
+          />
+          <Button
+            variant="contained"
+            onClick={handleSend}
+            disabled={content.trim().length === 0 || sendMutation.isPending}
+            endIcon={
+              sendMutation.isPending ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                <SendIcon />
+              )
+            }
+            sx={{ flexShrink: 0 }}
+          >
+            Enviar
+          </Button>
+        </Box>
+      ) : (
+        <Box
+          sx={{
+            px: 2,
+            py: 1.5,
+            borderTop: "1px solid",
+            borderColor: "divider",
+            textAlign: "center",
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            Tomá la conversación para responder manualmente.
+          </Typography>
+        </Box>
+      )}
+
+      <ConfirmDialog
+        open={releaseDialogOpen}
+        title="Devolver al bot"
+        description="¿Querés devolver esta conversación al bot? El próximo mensaje del cliente volverá a ser procesado automáticamente."
+        confirmLabel="Devolver al bot"
+        cancelLabel="Cancelar"
+        loading={releaseMutation.isPending}
+        error={releaseMutation.isError ? getApiErrorMessage(releaseMutation.error) : null}
+        onConfirm={handleConfirmRelease}
+        onClose={handleCloseReleaseDialog}
+      />
     </Box>
   );
 }

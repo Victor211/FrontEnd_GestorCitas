@@ -1,8 +1,10 @@
 export type ConversationStatus = "ACTIVE" | "CLOSED";
 
+export type ConversationMode = "BOT" | "HUMAN";
+
 export type MessageDirection = "INBOUND" | "OUTBOUND";
 
-export type MessageSenderType = "CUSTOMER" | "BOT" | "SYSTEM";
+export type MessageSenderType = "CUSTOMER" | "BOT" | "HUMAN" | "SYSTEM";
 
 export type MessageType = "TEXT" | "IMAGE" | "AUDIO" | "DOCUMENT" | "OTHER";
 
@@ -12,9 +14,15 @@ export interface ConversationSummary {
   customerName: string | null;
   senderPhone: string;
   status: ConversationStatus;
+  mode: ConversationMode;
   lastMessageAt: string | null;
   lastMessagePreview: string | null;
   unreadCount: number;
+}
+
+export interface ConversationModeResult {
+  id: number;
+  mode: ConversationMode;
 }
 
 export interface ConversationMessage {

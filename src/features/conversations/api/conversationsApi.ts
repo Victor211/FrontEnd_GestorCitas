@@ -4,6 +4,7 @@ import type { PageResponse } from "../../../api/types/page-response.types";
 import type {
   ConversationFilters,
   ConversationMessage,
+  ConversationModeResult,
   ConversationReadResult,
   ConversationSummary,
 } from "../types/conversation.types";
@@ -38,6 +39,31 @@ export async function markConversationAsRead(
 ): Promise<ConversationReadResult> {
   const { data } = await apiClient.put<ApiResponse<ConversationReadResult>>(
     `/api/conversations/${conversationId}/read`,
+  );
+  return data.data;
+}
+
+export async function takeoverConversation(conversationId: number): Promise<ConversationModeResult> {
+  const { data } = await apiClient.put<ApiResponse<ConversationModeResult>>(
+    `/api/conversations/${conversationId}/takeover`,
+  );
+  return data.data;
+}
+
+export async function releaseConversation(conversationId: number): Promise<ConversationModeResult> {
+  const { data } = await apiClient.put<ApiResponse<ConversationModeResult>>(
+    `/api/conversations/${conversationId}/release`,
+  );
+  return data.data;
+}
+
+export async function sendConversationMessage(
+  conversationId: number,
+  content: string,
+): Promise<ConversationMessage> {
+  const { data } = await apiClient.post<ApiResponse<ConversationMessage>>(
+    `/api/conversations/${conversationId}/messages`,
+    { content },
   );
   return data.data;
 }

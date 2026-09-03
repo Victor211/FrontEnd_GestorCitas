@@ -9,6 +9,7 @@ interface MessageBubbleProps {
 const SENDER_LABELS: Record<ConversationMessage["senderType"], string> = {
   CUSTOMER: "Cliente",
   BOT: "Bot",
+  HUMAN: "Vos",
   SYSTEM: "Sistema",
 };
 

@@ -1,6 +1,10 @@
-import { Box, ListItem, ListItemButton, Stack, Typography } from "@mui/material";
+import { Box, Chip, ListItem, ListItemButton, Stack, Typography } from "@mui/material";
 import type { ConversationSummary } from "../types/conversation.types";
-import { getConversationDisplayName, getConversationPreview } from "../utils/conversationDisplay";
+import {
+  getConversationDisplayName,
+  getConversationModeLabel,
+  getConversationPreview,
+} from "../utils/conversationDisplay";
 import { formatConversationListTime } from "../utils/conversationDate";
 
 interface ConversationListItemProps {
@@ -26,13 +30,24 @@ export function ConversationListItem({
       >
         <Stack sx={{ width: "100%", minWidth: 0 }} spacing={0.25}>
           <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-            <Typography
-              variant="subtitle2"
-              noWrap
-              sx={{ fontWeight: hasUnread ? 700 : 600, minWidth: 0 }}
-            >
-              {getConversationDisplayName(conversation)}
-            </Typography>
+            <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", minWidth: 0 }}>
+              <Typography
+                variant="subtitle2"
+                noWrap
+                sx={{ fontWeight: hasUnread ? 700 : 600, minWidth: 0 }}
+              >
+                {getConversationDisplayName(conversation)}
+              </Typography>
+              {conversation.mode === "HUMAN" && (
+                <Chip
+                  label={getConversationModeLabel(conversation.mode)}
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                  sx={{ height: 18, flexShrink: 0, "& .MuiChip-label": { px: 0.75, fontSize: 10 } }}
+                />
+              )}
+            </Stack>
             <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0, ml: 1 }}>
               {formatConversationListTime(conversation.lastMessageAt)}
             </Typography>

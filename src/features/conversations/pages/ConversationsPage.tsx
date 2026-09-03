@@ -12,15 +12,20 @@ const PANEL_HEIGHT = "calc(100vh - 260px)";
 const MIN_PANEL_HEIGHT = 420;
 
 export function ConversationsPage() {
-  const [selectedConversation, setSelectedConversation] = useState<ConversationSummary | null>(
-    null,
-  );
+  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
 
   const conversationsQuery = useConversations();
   const markAsRead = useMarkConversationRead();
 
+  // Se deriva de la cache de la lista (en vez de guardar el objeto seleccionado en el propio
+  // estado) para que takeover/release/send, que actualizan esa cache, se reflejen de inmediato en
+  // el chat abierto sin necesitar un refresh completo.
+  const conversations = conversationsQuery.data?.pages.flatMap((page) => page.content) ?? [];
+  const selectedConversation =
+    conversations.find((conversation) => conversation.id === selectedConversationId) ?? null;
+
   const handleSelect = (conversation: ConversationSummary) => {
-    setSelectedConversation(conversation);
+    setSelectedConversationId(conversation.id);
     if (conversation.unreadCount > 0) {
       markAsRead.mutate(conversation.id);
     }
@@ -30,7 +35,7 @@ export function ConversationsPage() {
     <>
       <PageHeader
         title="Conversaciones"
-        description="Historial de conversaciones de WhatsApp con tus clientes. Solo lectura."
+        description="Historial de conversaciones de WhatsApp con tus clientes."
       />
       <Paper
         variant="outlined"
@@ -71,7 +76,7 @@ export function ConversationsPage() {
             <ConversationChat
               key={selectedConversation.id}
               conversation={selectedConversation}
-              onBack={() => setSelectedConversation(null)}
+              onBack={() => setSelectedConversationId(null)}
             />
           ) : (
             <Box
