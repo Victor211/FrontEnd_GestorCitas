@@ -43,12 +43,24 @@ export function ConversationChat({ conversation, onBack }: ConversationChatProps
   const [content, setContent] = useState("");
 
   const bottomRef = useRef<HTMLDivElement>(null);
+  const lastMessageIdRef = useRef<number | null>(null);
   const displayName = getConversationDisplayName(conversation);
   const showPhoneSubtitle = conversation.customerName?.trim() && conversation.senderPhone;
   const isHuman = conversation.mode === "HUMAN";
 
   useEffect(() => {
-    if (messagesQuery.isSuccess) {
+    if (!messagesQuery.isSuccess) {
+      return;
+    }
+
+    // Con polling, messagesQuery.data cambia de referencia en cada refetch aunque el contenido
+    // sea igual. Solo hacemos scroll cuando realmente llegó un mensaje nuevo (cambia el último
+    // id), para no interrumpir al operador cada 3 segundos.
+    const messages = messagesQuery.data;
+    const lastMessageId = messages.at(-1)?.id ?? null;
+
+    if (lastMessageId !== lastMessageIdRef.current) {
+      lastMessageIdRef.current = lastMessageId;
       bottomRef.current?.scrollIntoView({ block: "end" });
     }
   }, [messagesQuery.isSuccess, messagesQuery.data]);

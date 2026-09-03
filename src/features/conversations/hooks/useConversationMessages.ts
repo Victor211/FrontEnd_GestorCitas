@@ -7,5 +7,8 @@ export function useConversationMessages(conversationId: number | null) {
     queryKey: conversationsKeys.messages(conversationId ?? -1),
     queryFn: () => getConversationMessages(conversationId as number),
     enabled: conversationId !== null,
+    // Mismo criterio que useConversations: se pausa solo cuando la conversación no está
+    // seleccionada (enabled) o la pestaña no está visible (default de refetchIntervalInBackground).
+    refetchInterval: 3000,
   });
 }
