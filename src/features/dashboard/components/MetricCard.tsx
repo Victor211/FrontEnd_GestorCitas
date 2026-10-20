@@ -1,5 +1,5 @@
 import type { SvgIconComponent } from "@mui/icons-material";
-import { Card, CardActionArea, Stack, Typography } from "@mui/material";
+import { alpha, Box, Card, CardActionArea, Stack, Typography } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
 
 interface MetricCardProps {
@@ -21,7 +21,19 @@ export function MetricCard({
     <Card variant="outlined" sx={{ borderRadius: 3, height: "100%" }}>
       <CardActionArea component={RouterLink} to={to} sx={{ height: "100%", p: 2.5 }}>
         <Stack spacing={1}>
-          <Icon color="primary" aria-hidden="true" />
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: 2.5,
+              bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1),
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon color="primary" aria-hidden="true" />
+          </Box>
           <Typography variant="body2" color="text.secondary">
             {title}
           </Typography>

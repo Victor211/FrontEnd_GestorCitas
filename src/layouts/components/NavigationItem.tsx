@@ -31,9 +31,12 @@ export function NavigationItem({
       onClick={onNavigate}
       aria-current={isActive ? "page" : undefined}
       sx={{
-        minHeight: 48,
+        minHeight: 44,
+        my: 0.25,
         justifyContent: collapsed ? "center" : "flex-start",
-        px: 2.5,
+        px: collapsed ? 1.5 : 2,
+        color: isActive ? "primary.main" : "text.secondary",
+        "&:hover": { color: "text.primary" },
       }}
     >
       <ListItemIcon
@@ -51,7 +54,7 @@ export function NavigationItem({
           primary={item.label}
           slotProps={{
             primary: {
-              sx: { fontWeight: isActive ? 600 : 400 },
+              sx: { fontSize: 14, fontWeight: isActive ? 600 : 500 },
             },
           }}
         />

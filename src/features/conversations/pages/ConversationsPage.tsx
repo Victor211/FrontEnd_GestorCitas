@@ -1,5 +1,5 @@
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
-import { Box, Paper, Typography } from "@mui/material";
+import { alpha, Box, Paper, Typography } from "@mui/material";
 import { useState } from "react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { ConversationChat } from "../components/ConversationChat";
@@ -40,7 +40,7 @@ export function ConversationsPage() {
       <Paper
         variant="outlined"
         sx={{
-          borderRadius: 3,
+          borderRadius: 4,
           overflow: "hidden",
           display: "flex",
           height: PANEL_HEIGHT,
@@ -50,6 +50,7 @@ export function ConversationsPage() {
         <Box
           sx={{
             width: { xs: "100%", md: 360 },
+            bgcolor: "background.paper",
             flexShrink: 0,
             display: { xs: selectedConversation ? "none" : "block", md: "block" },
             borderRight: { md: "1px solid" },
@@ -91,7 +92,21 @@ export function ConversationsPage() {
                 textAlign: "center",
               }}
             >
-              <ChatOutlinedIcon sx={{ fontSize: 40 }} color="disabled" />
+              <Box
+                sx={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: "50%",
+                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1),
+                  color: "primary.main",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  mb: 1,
+                }}
+              >
+                <ChatOutlinedIcon sx={{ fontSize: 30 }} aria-hidden="true" />
+              </Box>
               <Typography variant="body1" color="text.secondary">
                 Seleccioná una conversación para ver los mensajes.
               </Typography>

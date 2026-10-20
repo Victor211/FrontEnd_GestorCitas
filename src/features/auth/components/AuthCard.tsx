@@ -7,7 +7,7 @@ interface AuthCardProps {
 
 export function AuthCard({ children }: AuthCardProps) {
   return (
-    <Paper variant="outlined" sx={{ p: { xs: 3, sm: 4 }, borderRadius: 3 }}>
+    <Paper variant="outlined" sx={{ p: { xs: 3, sm: 4 }, borderRadius: 4 }}>
       {children}
     </Paper>
   );

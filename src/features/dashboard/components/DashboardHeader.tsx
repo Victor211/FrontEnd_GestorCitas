@@ -26,7 +26,7 @@ export function DashboardHeader({
       }}
     >
       <Box>
-        <Typography variant="h5" component="h1" sx={{ fontWeight: 600 }}>
+        <Typography variant="h5" component="h1" sx={{ fontWeight: 700, fontSize: 24 }}>
           {getGreeting()}, {firstName}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>

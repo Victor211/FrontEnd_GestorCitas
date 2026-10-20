@@ -8,12 +8,13 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Divider,
   IconButton,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "../../../components/feedback/ConfirmDialog";
 import { ErrorAlert } from "../../../components/feedback/ErrorAlert";
 import { FullScreenLoader } from "../../../components/feedback/FullScreenLoader";
@@ -23,7 +24,9 @@ import { useReleaseConversation } from "../hooks/useReleaseConversation";
 import { useSendConversationMessage } from "../hooks/useSendConversationMessage";
 import { useTakeoverConversation } from "../hooks/useTakeoverConversation";
 import type { ConversationSummary } from "../types/conversation.types";
+import { formatMessageDayLabel, isSameMessageDay } from "../utils/conversationDate";
 import { getConversationDisplayName, getConversationModeLabel } from "../utils/conversationDisplay";
+import { ConversationAvatar } from "./ConversationAvatar";
 import { MessageBubble } from "./MessageBubble";
 
 const MESSAGE_MAX_LENGTH = 4096;
@@ -107,12 +110,13 @@ export function ConversationChat({ conversation, onBack }: ConversationChatProps
         sx={{
           flexWrap: "wrap",
           alignItems: "center",
-          columnGap: 1,
           rowGap: 1,
-          px: 2,
+          columnGap: 1.5,
+          px: { xs: 1.5, sm: 2.5 },
           py: 1.5,
           borderBottom: "1px solid",
           borderColor: "divider",
+          bgcolor: "background.paper",
         }}
       >
         {onBack && (
@@ -125,12 +129,13 @@ export function ConversationChat({ conversation, onBack }: ConversationChatProps
             <ArrowBackIcon />
           </IconButton>
         )}
+        <ConversationAvatar conversation={conversation} size={40} />
         <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3 }} noWrap>
             {displayName}
           </Typography>
           {showPhoneSubtitle && (
-            <Typography variant="caption" color="text.secondary" noWrap>
+            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
               {conversation.senderPhone}
             </Typography>
           )}
@@ -141,8 +146,17 @@ export function ConversationChat({ conversation, onBack }: ConversationChatProps
             icon={isHuman ? <SupportAgentOutlinedIcon /> : <SmartToyOutlinedIcon />}
             label={getConversationModeLabel(conversation.mode)}
             size="small"
-            color={isHuman ? "warning" : "default"}
             variant={isHuman ? "filled" : "outlined"}
+            sx={
+              isHuman
+                ? {
+                    bgcolor: (theme) =>
+                      theme.palette.mode === "dark" ? "rgba(237,108,2,0.18)" : "#FFF4E5",
+                    color: (theme) => (theme.palette.mode === "dark" ? "#FFB74D" : "#8A4210"),
+                    "& .MuiChip-icon": { color: "inherit" },
+                  }
+                : { color: "text.secondary", "& .MuiChip-icon": { color: "inherit" } }
+            }
           />
           {isHuman ? (
             <Button
@@ -182,7 +196,16 @@ export function ConversationChat({ conversation, onBack }: ConversationChatProps
         </Alert>
       )}
 
-      <Box sx={{ flexGrow: 1, overflowY: "auto", p: 2 }}>
+      <Box
+        sx={{
+          flexGrow: 1,
+          overflowY: "auto",
+          px: { xs: 1.5, sm: 3 },
+          pt: 1,
+          pb: 2.5,
+          bgcolor: (theme) => (theme.palette.mode === "dark" ? "background.default" : "#F7F9FB"),
+        }}
+      >
         {messagesQuery.isPending && <FullScreenLoader />}
 
         {messagesQuery.isError && (
@@ -195,10 +218,36 @@ export function ConversationChat({ conversation, onBack }: ConversationChatProps
         )}
 
         {messagesQuery.isSuccess && (
-          <Stack spacing={1.5}>
-            {messagesQuery.data.map((message) => (
-              <MessageBubble key={message.id} message={message} />
-            ))}
+          <Stack>
+            {messagesQuery.data.map((message, index, messages) => {
+              const previous = messages[index - 1];
+              const next = messages[index + 1];
+              const startsNewDay =
+                !previous || !isSameMessageDay(previous.createdAt, message.createdAt);
+              const endsDay = !next || !isSameMessageDay(message.createdAt, next.createdAt);
+              const isFirstInGroup = startsNewDay || previous.senderType !== message.senderType;
+              const isLastInGroup = endsDay || next.senderType !== message.senderType;
+
+              return (
+                <Fragment key={message.id}>
+                  {startsNewDay && (
+                    <Divider sx={{ mt: 2.5, mb: 0.75, "&::before, &::after": { borderColor: "divider" } }}>
+                      <Chip
+                        label={formatMessageDayLabel(message.createdAt)}
+                        size="small"
+                        variant="outlined"
+                        sx={{ bgcolor: "background.paper", color: "text.secondary", fontSize: 12 }}
+                      />
+                    </Divider>
+                  )}
+                  <MessageBubble
+                    message={message}
+                    isFirstInGroup={isFirstInGroup}
+                    isLastInGroup={isLastInGroup}
+                  />
+                </Fragment>
+              );
+            })}
             <div ref={bottomRef} />
           </Stack>
         )}
@@ -207,12 +256,13 @@ export function ConversationChat({ conversation, onBack }: ConversationChatProps
       {isHuman ? (
         <Box
           sx={{
-            px: 2,
+            px: { xs: 1.5, sm: 2.5 },
             py: 1.5,
             borderTop: "1px solid",
             borderColor: "divider",
+            bgcolor: "background.paper",
             display: "flex",
-            gap: 1,
+            gap: 1.25,
             alignItems: "flex-end",
           }}
         >
@@ -226,6 +276,7 @@ export function ConversationChat({ conversation, onBack }: ConversationChatProps
             maxRows={5}
             fullWidth
             size="small"
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: 3, py: 1.25 } }}
             disabled={sendMutation.isPending}
             slotProps={{ htmlInput: { maxLength: MESSAGE_MAX_LENGTH } }}
             error={sendMutation.isError}
@@ -242,7 +293,7 @@ export function ConversationChat({ conversation, onBack }: ConversationChatProps
                 <SendIcon />
               )
             }
-            sx={{ flexShrink: 0 }}
+            sx={{ flexShrink: 0, height: 44, px: 2.25, borderRadius: 3 }}
           >
             Enviar
           </Button>
@@ -251,9 +302,10 @@ export function ConversationChat({ conversation, onBack }: ConversationChatProps
         <Box
           sx={{
             px: 2,
-            py: 1.5,
+            py: 1.75,
             borderTop: "1px solid",
             borderColor: "divider",
+            bgcolor: "background.paper",
             textAlign: "center",
           }}
         >

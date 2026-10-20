@@ -1,6 +1,7 @@
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import { Divider, Drawer, IconButton, Toolbar, Typography } from "@mui/material";
+import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
+import { Box, Divider, Drawer, IconButton, Stack, Toolbar, Typography } from "@mui/material";
 import { DRAWER_WIDTH_COLLAPSED, DRAWER_WIDTH_EXPANDED } from "../constants";
 import { NavigationList } from "./NavigationList";
 
@@ -48,9 +49,27 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
         }}
       >
         {!collapsed && (
-          <Typography variant="subtitle1" sx={{ fontWeight: 700, pl: 1 }} noWrap>
-            Appointment Manager
-          </Typography>
+          <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", pl: 1, minWidth: 0 }}>
+            <Box
+              aria-hidden="true"
+              sx={{
+                width: 32,
+                height: 32,
+                flexShrink: 0,
+                borderRadius: 2,
+                bgcolor: "primary.main",
+                color: "primary.contrastText",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <EventAvailableOutlinedIcon sx={{ fontSize: 20 }} />
+            </Box>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
+              Appointment Manager
+            </Typography>
+          </Stack>
         )}
         <IconButton
           onClick={onToggleCollapsed}
@@ -59,7 +78,7 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
           {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
         </IconButton>
       </Toolbar>
-      <Divider />
+      <Divider sx={{ mb: 1 }} />
       <NavigationList collapsed={collapsed} />
     </Drawer>
   );

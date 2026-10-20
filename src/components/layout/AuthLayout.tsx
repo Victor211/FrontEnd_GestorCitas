@@ -29,7 +29,7 @@ export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
             `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
         }}
       >
-        <Typography variant="h3" sx={{ fontWeight: 600 }}>
+        <Typography variant="h3" sx={{ fontWeight: 700 }}>
           Appointment Manager
         </Typography>
         <Typography variant="body1">
@@ -47,7 +47,7 @@ export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
         }}
       >
         <Box sx={{ width: "100%", maxWidth: 480 }}>
-          <Typography variant="h5" sx={{ fontWeight: 600, mb: 0.5 }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
             {title}
           </Typography>
           <Typography

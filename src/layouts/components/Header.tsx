@@ -1,5 +1,5 @@
 import MenuIcon from "@mui/icons-material/Menu";
-import { AppBar, Box, IconButton, Toolbar, Typography } from "@mui/material";
+import { alpha, AppBar, Box, IconButton, Toolbar, Typography } from "@mui/material";
 import { useLocation } from "react-router-dom";
 import { navigationItems } from "../../app/router/navigation";
 import { useAuth } from "../../features/auth/hooks/useAuth";
@@ -29,7 +29,8 @@ export function Header({ collapsed, onMenuClick }: HeaderProps) {
         ml: { md: `${drawerWidth}px` },
         borderBottom: "1px solid",
         borderColor: "divider",
-        backgroundColor: "background.paper",
+        backgroundColor: (theme) => alpha(theme.palette.background.paper, 0.85),
+        backdropFilter: "blur(8px)",
         color: "text.primary",
         transition: (theme) =>
           theme.transitions.create(["width", "margin"], {
@@ -46,7 +47,7 @@ export function Header({ collapsed, onMenuClick }: HeaderProps) {
         >
           <MenuIcon />
         </IconButton>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600 }} noWrap>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
           {currentPage?.label ?? ""}
         </Typography>
         <Box sx={{ flexGrow: 1 }} />

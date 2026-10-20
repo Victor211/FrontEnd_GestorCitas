@@ -26,8 +26,9 @@ export function EmptyState({
         alignItems: "center",
         textAlign: "center",
         gap: 1,
-        borderRadius: 3,
+        borderRadius: 4,
         borderStyle: "dashed",
+        bgcolor: "background.paper",
       }}
     >
       {icon}

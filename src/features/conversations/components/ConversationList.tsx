@@ -44,7 +44,7 @@ export function ConversationList({ query, selectedConversationId, onSelect }: Co
         )}
 
         {conversations.length > 0 && (
-          <List disablePadding aria-label="Conversaciones">
+          <List disablePadding aria-label="Conversaciones" sx={{ py: 0.75 }}>
             {conversations.map((conversation) => (
               <ConversationListItem
                 key={conversation.id}
