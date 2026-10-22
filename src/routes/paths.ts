@@ -8,5 +8,6 @@ export const ROUTES = {
   SCHEDULES: "/schedules",
   APPOINTMENTS: "/appointments",
   CONVERSATIONS: "/conversations",
+  USERS: "/users",
   SETTINGS: "/settings",
 } as const;

@@ -9,10 +9,13 @@ import { EmployeesPage } from "../../features/employees/pages/EmployeesPage";
 import { SchedulesPage } from "../../features/schedules/pages/SchedulesPage";
 import { ServicesPage } from "../../features/services/pages/ServicesPage";
 import { SettingsPage } from "../../features/settings/pages/SettingsPage";
+import { UsersPage } from "../../features/users/pages/UsersPage";
 import { AppLayout } from "../../layouts/AppLayout";
 import { NotFoundPage } from "../../routes/NotFoundPage";
 import { ROUTES } from "../../routes/paths";
+import { USER_MANAGEMENT_ROLE } from "./navigation";
 import { ProtectedRoute } from "./ProtectedRoute";
+import { RoleRoute } from "./RoleRoute";
 import { PublicRoute } from "./PublicRoute";
 
 const router = createBrowserRouter([
@@ -31,6 +34,14 @@ const router = createBrowserRouter([
       { path: "conversations", element: <ConversationsPage /> },
       { path: "schedules", element: <SchedulesPage /> },
       { path: "appointments", element: <AppointmentsPage /> },
+      {
+        path: "users",
+        element: (
+          <RoleRoute allowedRoles={[USER_MANAGEMENT_ROLE]}>
+            <UsersPage />
+          </RoleRoute>
+        ),
+      },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

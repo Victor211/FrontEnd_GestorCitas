@@ -6,6 +6,7 @@ import DesignServicesOutlinedIcon from "@mui/icons-material/DesignServicesOutlin
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
+import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { ROUTES } from "../../routes/paths";
 
@@ -15,6 +16,18 @@ export interface NavigationItemConfig {
   path: string;
   icon: SvgIconComponent;
   breadcrumb: string;
+  /** Roles con acceso. Si se omite, cualquier usuario autenticado. */
+  allowedRoles?: string[];
+}
+
+/** Único rol que administra usuarios (el backend lo valida con hasRole('OWNER')). */
+export const USER_MANAGEMENT_ROLE = "OWNER";
+
+export function canAccessNavigationItem(
+  item: NavigationItemConfig,
+  role: string | undefined,
+): boolean {
+  return !item.allowedRoles || (role !== undefined && item.allowedRoles.includes(role));
 }
 
 export const navigationItems: NavigationItemConfig[] = [
@@ -66,6 +79,14 @@ export const navigationItems: NavigationItemConfig[] = [
     path: ROUTES.SCHEDULES,
     icon: ScheduleOutlinedIcon,
     breadcrumb: "Horarios",
+  },
+  {
+    id: "users",
+    label: "Usuarios",
+    path: ROUTES.USERS,
+    icon: ManageAccountsOutlinedIcon,
+    breadcrumb: "Usuarios",
+    allowedRoles: [USER_MANAGEMENT_ROLE],
   },
   {
     id: "settings",
