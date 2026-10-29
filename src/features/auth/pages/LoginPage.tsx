@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Button, Link as MuiLink, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Button, Link as MuiLink, Stack, TextField, Typography } from "@mui/material";
 import { useForm } from "react-hook-form";
 import { Link as RouterLink } from "react-router-dom";
 import { FormErrorAlert } from "../../../components/feedback/FormErrorAlert";
@@ -8,11 +8,14 @@ import { PasswordField } from "../../../components/forms/PasswordField";
 import { ROUTES } from "../../../routes/paths";
 import { getApiErrorMessage } from "../../../utils/getApiErrorMessage";
 import { AuthCard } from "../components/AuthCard";
+import { useAuth } from "../hooks/useAuth";
 import { useLogin } from "../hooks/useLogin";
 import { loginSchema, type LoginFormValues } from "../schemas/login.schema";
+import { SESSION_NOTICE_MESSAGES } from "../utils/sessionNotices";
 
 export function LoginPage() {
   const loginMutation = useLogin();
+  const { sessionNotice, clearSessionNotice } = useAuth();
   const {
     register,
     handleSubmit,
@@ -35,6 +38,11 @@ export function LoginPage() {
     >
       <AuthCard>
         <Stack component="form" onSubmit={onSubmit} noValidate spacing={2}>
+          {sessionNotice && (
+            <Alert severity="warning" role="alert" onClose={clearSessionNotice}>
+              {SESSION_NOTICE_MESSAGES[sessionNotice]}
+            </Alert>
+          )}
           <FormErrorAlert
             message={
               loginMutation.isError

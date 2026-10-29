@@ -8,6 +8,8 @@ export interface ApiResponse<T> {
 export interface ApiError {
   success: boolean;
   message: string;
+  /** Código estable del backend (p. ej. SESSION_REPLACED); solo en algunos errores. */
+  code?: string;
   errors: string[] | null;
   timestamp: string;
   status: number;

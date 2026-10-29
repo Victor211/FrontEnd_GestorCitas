@@ -33,7 +33,7 @@ export function UserMenu() {
 
   const handleLogout = () => {
     handleClose();
-    logout();
+    void logout();
   };
 
   return (

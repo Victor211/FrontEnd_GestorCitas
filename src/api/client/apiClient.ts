@@ -1,10 +1,11 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { env } from "../../lib/env";
 import type { ApiError } from "../types/api-response.types";
-import { sessionManager } from "./sessionManager";
+import { sessionManager, toSessionEndReason } from "./sessionManager";
 import { tokenStorage } from "./tokenStorage";
 
 const LOGIN_ENDPOINT = "/api/auth/login";
+const LOGOUT_ENDPOINT = "/api/auth/logout";
 
 export const apiClient = axios.create({
   baseURL: env.apiBaseUrl,
@@ -15,6 +16,11 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  // Respeta un Authorization explícito (el logout fija el token que va a revocar).
+  if (config.headers.has("Authorization")) {
+    return config;
+  }
+
   const accessToken = tokenStorage.getAccessToken();
 
   if (accessToken) {
@@ -24,14 +30,37 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
+/**
+ * Un 401 solo invalida la sesión local si la solicitud fue enviada con el token
+ * que sigue vigente. Una respuesta tardía de un token anterior (otro login,
+ * otra pestaña) o un 401 concurrente ya gestionado se ignoran.
+ */
+function isCurrentSessionRequest(error: AxiosError<ApiError>): boolean {
+  const sentAuthorization = error.config?.headers?.get("Authorization");
+  const currentToken = tokenStorage.getAccessToken();
+
+  return (
+    currentToken !== null && sentAuthorization === `Bearer ${currentToken}`
+  );
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiError>) => {
-    const isLoginRequest = error.config?.url?.includes(LOGIN_ENDPOINT);
+    const url = error.config?.url ?? "";
+    // Login y logout gestionan sus propios errores.
+    const isAuthFlowRequest =
+      url.includes(LOGIN_ENDPOINT) || url.includes(LOGOUT_ENDPOINT);
 
-    if (error.response?.status === 401 && !isLoginRequest) {
+    if (
+      error.response?.status === 401 &&
+      !isAuthFlowRequest &&
+      isCurrentSessionRequest(error)
+    ) {
       tokenStorage.removeAccessToken();
-      sessionManager.notifyUnauthorized();
+      sessionManager.notifyUnauthorized(
+        toSessionEndReason(error.response.data?.code),
+      );
     }
 
     const apiError: ApiError = error.response?.data ?? {

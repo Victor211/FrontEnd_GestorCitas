@@ -25,6 +25,16 @@ export async function register(
   return data.data;
 }
 
+const LOGOUT_TIMEOUT_MS = 3_000;
+
+/** Revoca en el servidor la sesión del token indicado (HTTP 204). */
+export async function logout(accessToken: string): Promise<void> {
+  await apiClient.post("/api/auth/logout", null, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    timeout: LOGOUT_TIMEOUT_MS,
+  });
+}
+
 export async function getCurrentUser(): Promise<CurrentUser> {
   const { data } =
     await apiClient.get<ApiResponse<CurrentUser>>("/api/auth/me");

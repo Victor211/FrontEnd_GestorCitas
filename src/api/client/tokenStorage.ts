@@ -1,4 +1,4 @@
-const ACCESS_TOKEN_KEY = "gestorcitas.accessToken";
+export const ACCESS_TOKEN_KEY = "gestorcitas.accessToken";
 
 function getAccessToken(): string | null {
   return localStorage.getItem(ACCESS_TOKEN_KEY);

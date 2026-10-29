@@ -1,3 +1,5 @@
+import type { SessionEndReason } from "../../../api/client/sessionManager";
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -37,7 +39,9 @@ export interface AuthContextValue {
   user: CurrentUser | null;
   authenticated: boolean;
   isInitializing: boolean;
+  sessionNotice: SessionEndReason | null;
   loginSession: (authResponse: AuthResponse) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
+  clearSessionNotice: () => void;
   refreshCurrentUser: () => void;
 }
