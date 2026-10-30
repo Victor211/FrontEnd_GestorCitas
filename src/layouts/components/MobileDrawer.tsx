@@ -1,4 +1,5 @@
-import { Divider, Drawer, Toolbar, Typography } from "@mui/material";
+import { Divider, Drawer, Toolbar } from "@mui/material";
+import { AvnexLogo } from "../../components/branding/AvnexLogo";
 import { DRAWER_WIDTH_EXPANDED } from "../constants";
 import { NavigationList } from "./NavigationList";
 
@@ -22,9 +23,7 @@ export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
       }}
     >
       <Toolbar sx={{ display: "flex", alignItems: "center", px: 2 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
-          Appointment Manager
-        </Typography>
+        <AvnexLogo variant="horizontal" height={44} />
       </Toolbar>
       <Divider />
       <NavigationList collapsed={false} onNavigate={onClose} />

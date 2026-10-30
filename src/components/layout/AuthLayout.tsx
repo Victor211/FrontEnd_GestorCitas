@@ -4,10 +4,11 @@ import type { ReactNode } from "react";
 interface AuthLayoutProps {
   title: string;
   subtitle: string;
+  logo?: ReactNode;
   children: ReactNode;
 }
 
-export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
+export function AuthLayout({ title, subtitle, logo, children }: AuthLayoutProps) {
   return (
     <Box
       sx={{
@@ -47,6 +48,11 @@ export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
         }}
       >
         <Box sx={{ width: "100%", maxWidth: 480 }}>
+          {logo && (
+            <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+              {logo}
+            </Box>
+          )}
           <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
             {title}
           </Typography>

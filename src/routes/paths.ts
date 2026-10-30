@@ -1,3 +1,6 @@
+// Registro público deshabilitado temporalmente; las altas se hacen por API.
+export const REGISTRATION_ENABLED = false;
+
 export const ROUTES = {
   HOME: "/",
   LOGIN: "/login",

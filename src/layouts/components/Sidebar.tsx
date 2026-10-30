@@ -1,7 +1,7 @@
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
-import { Box, Divider, Drawer, IconButton, Stack, Toolbar, Typography } from "@mui/material";
+import { Box, Divider, Drawer, IconButton, Toolbar } from "@mui/material";
+import { AvnexLogo } from "../../components/branding/AvnexLogo";
 import { DRAWER_WIDTH_COLLAPSED, DRAWER_WIDTH_EXPANDED } from "../constants";
 import { NavigationList } from "./NavigationList";
 
@@ -49,27 +49,9 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
         }}
       >
         {!collapsed && (
-          <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", pl: 1, minWidth: 0 }}>
-            <Box
-              aria-hidden="true"
-              sx={{
-                width: 32,
-                height: 32,
-                flexShrink: 0,
-                borderRadius: 2,
-                bgcolor: "primary.main",
-                color: "primary.contrastText",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <EventAvailableOutlinedIcon sx={{ fontSize: 20 }} />
-            </Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
-              Appointment Manager
-            </Typography>
-          </Stack>
+          <Box sx={{ pl: 1, minWidth: 0 }}>
+            <AvnexLogo variant="horizontal" height={44} />
+          </Box>
         )}
         <IconButton
           onClick={onToggleCollapsed}
@@ -80,6 +62,11 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
       </Toolbar>
       <Divider sx={{ mb: 1 }} />
       <NavigationList collapsed={collapsed} />
+      {collapsed && (
+        <Box sx={{ mt: "auto", display: "flex", justifyContent: "center", py: 2 }}>
+          <AvnexLogo variant="isotipo" height={36} />
+        </Box>
+      )}
     </Drawer>
   );
 }

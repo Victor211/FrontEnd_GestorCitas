@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
 import { AppointmentsPage } from "../../features/appointments/pages/AppointmentsPage";
 import { LoginPage } from "../../features/auth/pages/LoginPage";
 import { RegisterPage } from "../../features/auth/pages/RegisterPage";
@@ -12,7 +12,7 @@ import { SettingsPage } from "../../features/settings/pages/SettingsPage";
 import { UsersPage } from "../../features/users/pages/UsersPage";
 import { AppLayout } from "../../layouts/AppLayout";
 import { NotFoundPage } from "../../routes/NotFoundPage";
-import { ROUTES } from "../../routes/paths";
+import { REGISTRATION_ENABLED, ROUTES } from "../../routes/paths";
 import { USER_MANAGEMENT_ROLE } from "./navigation";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { RoleRoute } from "./RoleRoute";
@@ -55,10 +55,12 @@ const router = createBrowserRouter([
   },
   {
     path: ROUTES.REGISTER,
-    element: (
+    element: REGISTRATION_ENABLED ? (
       <PublicRoute>
         <RegisterPage />
       </PublicRoute>
+    ) : (
+      <Navigate to={ROUTES.LOGIN} replace />
     ),
   },
   {

@@ -3,9 +3,10 @@ import { Alert, Button, Link as MuiLink, Stack, TextField, Typography } from "@m
 import { useForm } from "react-hook-form";
 import { Link as RouterLink } from "react-router-dom";
 import { FormErrorAlert } from "../../../components/feedback/FormErrorAlert";
+import { AvnexLogo } from "../../../components/branding/AvnexLogo";
 import { AuthLayout } from "../../../components/layout/AuthLayout";
 import { PasswordField } from "../../../components/forms/PasswordField";
-import { ROUTES } from "../../../routes/paths";
+import { REGISTRATION_ENABLED, ROUTES } from "../../../routes/paths";
 import { getApiErrorMessage } from "../../../utils/getApiErrorMessage";
 import { AuthCard } from "../components/AuthCard";
 import { useAuth } from "../hooks/useAuth";
@@ -35,6 +36,7 @@ export function LoginPage() {
     <AuthLayout
       title="Iniciar sesión"
       subtitle="Ingresá tus credenciales para acceder a tu negocio."
+      logo={<AvnexLogo variant="vertical" height={140} />}
     >
       <AuthCard>
         <Stack component="form" onSubmit={onSubmit} noValidate spacing={2}>
@@ -72,12 +74,14 @@ export function LoginPage() {
           <Button type="submit" variant="contained" size="large" disabled={isBusy}>
             {isBusy ? "Ingresando..." : "Ingresar"}
           </Button>
-          <Typography variant="body2" sx={{ textAlign: "center" }}>
-            ¿No tenés una cuenta?{" "}
-            <MuiLink component={RouterLink} to={ROUTES.REGISTER}>
-              Registrate
-            </MuiLink>
-          </Typography>
+          {REGISTRATION_ENABLED && (
+            <Typography variant="body2" sx={{ textAlign: "center" }}>
+              ¿No tenés una cuenta?{" "}
+              <MuiLink component={RouterLink} to={ROUTES.REGISTER}>
+                Registrate
+              </MuiLink>
+            </Typography>
+          )}
         </Stack>
       </AuthCard>
     </AuthLayout>
