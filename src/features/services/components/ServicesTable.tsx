@@ -1,3 +1,4 @@
+import DeleteForeverOutlinedIcon from "@mui/icons-material/DeleteForeverOutlined";
 import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -22,9 +23,10 @@ interface ServicesTableProps {
   onEdit: (service: Service) => void;
   onDeactivate: (service: Service) => void;
   onActivate: (service: Service) => void;
+  onPermanentDelete?: (service: Service) => void;
 }
 
-export function ServicesTable({ services, onEdit, onDeactivate, onActivate }: ServicesTableProps) {
+export function ServicesTable({ services, onEdit, onDeactivate, onActivate, onPermanentDelete }: ServicesTableProps) {
   return (
     <TableContainer sx={{ display: { xs: "none", md: "block" } }}>
       <Table aria-label="Servicios">
@@ -110,7 +112,19 @@ export function ServicesTable({ services, onEdit, onDeactivate, onActivate }: Se
                       </IconButton>
                     </Tooltip>
                   )}
-              </TableCell>
+                  {onPermanentDelete && !service.active && (
+                    <Tooltip title="Eliminar definitivamente">
+                      <IconButton
+                        aria-label={`Eliminar definitivamente ${service.name}`}
+                        onClick={() => onPermanentDelete(service)}
+                        size="small"
+                        color="error"
+                      >
+                        <DeleteForeverOutlinedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </TableCell>
             </TableRow>
           ))}
         </TableBody>

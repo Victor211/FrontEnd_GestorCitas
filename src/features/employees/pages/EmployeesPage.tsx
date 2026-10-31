@@ -2,6 +2,12 @@ import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import SearchOffOutlinedIcon from "@mui/icons-material/SearchOffOutlined";
 import { LinearProgress, Paper, Stack, TablePagination } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
+import { useCanPermanentDelete } from "../../auth/hooks/useCanPermanentDelete";
+import {
+  PermanentDeleteDialog,
+  type PermanentDeleteTarget,
+} from "../../../components/feedback/PermanentDeleteDialog";
+import { usePermanentDeleteEmployee } from "../hooks/usePermanentDeleteEmployee";
 import { EmptyState } from "../../../components/common/EmptyState";
 import { ErrorAlert } from "../../../components/feedback/ErrorAlert";
 import { SuccessSnackbar } from "../../../components/feedback/SuccessSnackbar";
@@ -33,6 +39,9 @@ export function EmployeesPage() {
     open: false,
     employee: null,
   });
+  const canPermanentDelete = useCanPermanentDelete();
+  const [permanentTarget, setPermanentTarget] = useState<PermanentDeleteTarget | null>(null);
+  const permanentDeleteMutation = usePermanentDeleteEmployee();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(DEFAULT_STATUS_FILTER);
   const [statusTarget, setStatusTarget] = useState<EmployeeStatusTarget | null>(null);
   const [snackbar, setSnackbar] = useState<{
@@ -102,6 +111,9 @@ export function EmployeesPage() {
     setStatusTarget({ employee, action: "activate" });
   const handleStatusClose = () => setStatusTarget(null);
 
+  const handlePermanentDeleteClick = (employee: Employee) =>
+    setPermanentTarget({ id: employee.id, name: `${employee.firstName ?? ""} ${employee.lastName ?? ""}`.trim() });
+
   return (
     <>
       <PageHeader
@@ -163,6 +175,7 @@ export function EmployeesPage() {
               onEdit={handleEditClick}
               onDeactivate={handleDeactivateClick}
               onActivate={handleActivateClick}
+              onPermanentDelete={canPermanentDelete ? handlePermanentDeleteClick : undefined}
             />
             <Stack
               component="ul"
@@ -176,6 +189,7 @@ export function EmployeesPage() {
                   onEdit={handleEditClick}
                   onDeactivate={handleDeactivateClick}
                   onActivate={handleActivateClick}
+                  onPermanentDelete={canPermanentDelete ? handlePermanentDeleteClick : undefined}
                 />
               ))}
             </Stack>
@@ -206,6 +220,13 @@ export function EmployeesPage() {
         onSuccess={(message) => notify(message)}
       />
       <EmployeeStatusDialog target={statusTarget} onClose={handleStatusClose} onNotify={notify} />
+      <PermanentDeleteDialog
+        target={permanentTarget}
+        successMessage="Empleado eliminado definitivamente."
+        mutation={permanentDeleteMutation}
+        onClose={() => setPermanentTarget(null)}
+        onNotify={notify}
+      />
       <SuccessSnackbar
         open={snackbar !== null}
         message={snackbar?.message ?? ""}

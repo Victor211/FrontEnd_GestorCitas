@@ -1,3 +1,4 @@
+import DeleteForeverOutlinedIcon from "@mui/icons-material/DeleteForeverOutlined";
 import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -24,9 +25,10 @@ interface EmployeesTableProps {
   onEdit: (employee: Employee) => void;
   onDeactivate: (employee: Employee) => void;
   onActivate: (employee: Employee) => void;
+  onPermanentDelete?: (employee: Employee) => void;
 }
 
-export function EmployeesTable({ employees, onEdit, onDeactivate, onActivate }: EmployeesTableProps) {
+export function EmployeesTable({ employees, onEdit, onDeactivate, onActivate, onPermanentDelete }: EmployeesTableProps) {
   return (
     <TableContainer sx={{ display: { xs: "none", md: "block" } }}>
       <Table aria-label="Empleados">
@@ -114,6 +116,18 @@ export function EmployeesTable({ employees, onEdit, onDeactivate, onActivate }: 
                         </IconButton>
                       </Tooltip>
                     )}
+                  {onPermanentDelete && !employee.active && (
+                    <Tooltip title="Eliminar definitivamente">
+                      <IconButton
+                        aria-label={`Eliminar definitivamente ${fullName}`}
+                        onClick={() => onPermanentDelete(employee)}
+                        size="small"
+                        color="error"
+                      >
+                        <DeleteForeverOutlinedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                 </TableCell>
               </TableRow>
             );

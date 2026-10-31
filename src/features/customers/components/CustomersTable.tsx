@@ -1,4 +1,5 @@
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
+import DeleteForeverOutlinedIcon from "@mui/icons-material/DeleteForeverOutlined";
+import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import {
   Avatar,
@@ -21,9 +22,10 @@ interface CustomersTableProps {
   customers: Customer[];
   onEdit: (customer: Customer) => void;
   onDelete: (customer: Customer) => void;
+  onPermanentDelete?: (customer: Customer) => void;
 }
 
-export function CustomersTable({ customers, onEdit, onDelete }: CustomersTableProps) {
+export function CustomersTable({ customers, onEdit, onDelete, onPermanentDelete }: CustomersTableProps) {
   return (
     <TableContainer sx={{ display: { xs: "none", md: "block" } }}>
       <Table aria-label="Clientes">
@@ -89,15 +91,27 @@ export function CustomersTable({ customers, onEdit, onDelete }: CustomersTablePr
                       <EditOutlinedIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Eliminar cliente">
+                  <Tooltip title="Desactivar cliente">
                     <IconButton
-                      aria-label={`Eliminar ${fullName}`}
+                      aria-label={`Desactivar ${fullName}`}
                       onClick={() => onDelete(customer)}
                       size="small"
                     >
-                      <DeleteOutlineIcon fontSize="small" />
+                      <BlockOutlinedIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
+                  {onPermanentDelete && true && (
+                    <Tooltip title="Eliminar definitivamente">
+                      <IconButton
+                        aria-label={`Eliminar definitivamente ${fullName}`}
+                        onClick={() => onPermanentDelete(customer)}
+                        size="small"
+                        color="error"
+                      >
+                        <DeleteForeverOutlinedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                 </TableCell>
               </TableRow>
             );

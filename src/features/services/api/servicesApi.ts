@@ -54,3 +54,8 @@ export async function deactivateService(id: number): Promise<void> {
 export async function activateService(id: number): Promise<void> {
   await apiClient.patch(`/api/services/${id}/activate`);
 }
+
+/** Eliminación definitiva (irreversible). */
+export async function permanentDeleteService(id: number): Promise<void> {
+  await apiClient.delete(`/api/services/${id}/permanent`);
+}

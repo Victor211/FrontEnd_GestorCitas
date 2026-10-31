@@ -57,3 +57,8 @@ export async function updateCustomer(
 export async function deleteCustomer(id: number): Promise<void> {
   await apiClient.delete(`/api/customers/${id}`);
 }
+
+/** Eliminación definitiva (irreversible). */
+export async function permanentDeleteCustomer(id: number): Promise<void> {
+  await apiClient.delete(`/api/customers/${id}/permanent`);
+}

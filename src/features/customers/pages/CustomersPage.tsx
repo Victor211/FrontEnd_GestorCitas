@@ -2,6 +2,12 @@ import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import SearchOffOutlinedIcon from "@mui/icons-material/SearchOffOutlined";
 import { LinearProgress, Paper, Stack, TablePagination } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
+import { useCanPermanentDelete } from "../../auth/hooks/useCanPermanentDelete";
+import {
+  PermanentDeleteDialog,
+  type PermanentDeleteTarget,
+} from "../../../components/feedback/PermanentDeleteDialog";
+import { usePermanentDeleteCustomer } from "../hooks/usePermanentDeleteCustomer";
 import { EmptyState } from "../../../components/common/EmptyState";
 import { ErrorAlert } from "../../../components/feedback/ErrorAlert";
 import { SuccessSnackbar } from "../../../components/feedback/SuccessSnackbar";
@@ -34,9 +40,18 @@ export function CustomersPage() {
     customer: null,
   });
   const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
+  const canPermanentDelete = useCanPermanentDelete();
+  const [permanentTarget, setPermanentTarget] = useState<PermanentDeleteTarget | null>(null);
+  const permanentDeleteMutation = usePermanentDeleteCustomer();
   const [phoneSearchOpen, setPhoneSearchOpen] = useState(false);
   const [phoneSearchKey, setPhoneSearchKey] = useState(0);
-  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [snackbar, setSnackbar] = useState<{
+    message: string;
+    severity: "success" | "info";
+  } | null>(null);
+
+  const notify = (message: string, severity: "success" | "info" = "success") =>
+    setSnackbar({ message, severity });
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -78,6 +93,9 @@ export function CustomersPage() {
     setPhoneSearchOpen(false);
     setDialogState({ open: true, customer });
   };
+
+  const handlePermanentDeleteClick = (customer: Customer) =>
+    setPermanentTarget({ id: customer.id, name: `${customer.firstName ?? ""} ${customer.lastName ?? ""}`.trim() });
 
   return (
     <>
@@ -141,6 +159,7 @@ export function CustomersPage() {
               customers={pageData.content}
               onEdit={handleEditClick}
               onDelete={handleDeleteClick}
+              onPermanentDelete={canPermanentDelete ? handlePermanentDeleteClick : undefined}
             />
             <Stack
               component="ul"
@@ -153,6 +172,7 @@ export function CustomersPage() {
                   customer={customer}
                   onEdit={handleEditClick}
                   onDelete={handleDeleteClick}
+                  onPermanentDelete={canPermanentDelete ? handlePermanentDeleteClick : undefined}
                 />
               ))}
             </Stack>
@@ -180,12 +200,12 @@ export function CustomersPage() {
         open={dialogState.open}
         customer={dialogState.customer}
         onClose={handleDialogClose}
-        onSuccess={setSnackbarMessage}
+        onSuccess={(message) => notify(message)}
       />
       <DeleteCustomerDialog
         customer={deleteTarget}
         onClose={handleDeleteClose}
-        onSuccess={setSnackbarMessage}
+        onSuccess={(message) => notify(message)}
       />
       <CustomerPhoneSearchDialog
         key={phoneSearchKey}
@@ -193,10 +213,18 @@ export function CustomersPage() {
         onClose={() => setPhoneSearchOpen(false)}
         onEditCustomer={handleEditFromPhoneSearch}
       />
+      <PermanentDeleteDialog
+        target={permanentTarget}
+        successMessage="Cliente eliminado definitivamente."
+        mutation={permanentDeleteMutation}
+        onClose={() => setPermanentTarget(null)}
+        onNotify={notify}
+      />
       <SuccessSnackbar
-        open={snackbarMessage !== null}
-        message={snackbarMessage ?? ""}
-        onClose={() => setSnackbarMessage(null)}
+        open={snackbar !== null}
+        message={snackbar?.message ?? ""}
+        severity={snackbar?.severity}
+        onClose={() => setSnackbar(null)}
       />
     </>
   );

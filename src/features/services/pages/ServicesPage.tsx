@@ -2,6 +2,12 @@ import DesignServicesOutlinedIcon from "@mui/icons-material/DesignServicesOutlin
 import SearchOffOutlinedIcon from "@mui/icons-material/SearchOffOutlined";
 import { LinearProgress, Paper, Stack, TablePagination } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
+import { useCanPermanentDelete } from "../../auth/hooks/useCanPermanentDelete";
+import {
+  PermanentDeleteDialog,
+  type PermanentDeleteTarget,
+} from "../../../components/feedback/PermanentDeleteDialog";
+import { usePermanentDeleteService } from "../hooks/usePermanentDeleteService";
 import { EmptyState } from "../../../components/common/EmptyState";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { ErrorAlert } from "../../../components/feedback/ErrorAlert";
@@ -33,6 +39,9 @@ export function ServicesPage() {
     open: false,
     service: null,
   });
+  const canPermanentDelete = useCanPermanentDelete();
+  const [permanentTarget, setPermanentTarget] = useState<PermanentDeleteTarget | null>(null);
+  const permanentDeleteMutation = usePermanentDeleteService();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(DEFAULT_STATUS_FILTER);
   const [statusTarget, setStatusTarget] = useState<ServiceStatusTarget | null>(null);
   const [snackbar, setSnackbar] = useState<{
@@ -102,6 +111,9 @@ export function ServicesPage() {
     setStatusTarget({ service, action: "activate" });
   const handleStatusClose = () => setStatusTarget(null);
 
+  const handlePermanentDeleteClick = (service: Service) =>
+    setPermanentTarget({ id: service.id, name: service.name });
+
   return (
     <>
       <PageHeader
@@ -163,6 +175,7 @@ export function ServicesPage() {
               onEdit={handleEditClick}
               onDeactivate={handleDeactivateClick}
               onActivate={handleActivateClick}
+              onPermanentDelete={canPermanentDelete ? handlePermanentDeleteClick : undefined}
             />
             <Stack
               component="ul"
@@ -176,6 +189,7 @@ export function ServicesPage() {
                   onEdit={handleEditClick}
                   onDeactivate={handleDeactivateClick}
                   onActivate={handleActivateClick}
+                  onPermanentDelete={canPermanentDelete ? handlePermanentDeleteClick : undefined}
                 />
               ))}
             </Stack>
@@ -206,6 +220,13 @@ export function ServicesPage() {
         onSuccess={(message) => notify(message)}
       />
       <ServiceStatusDialog target={statusTarget} onClose={handleStatusClose} onNotify={notify} />
+      <PermanentDeleteDialog
+        target={permanentTarget}
+        successMessage="Servicio eliminado definitivamente."
+        mutation={permanentDeleteMutation}
+        onClose={() => setPermanentTarget(null)}
+        onNotify={notify}
+      />
       <SuccessSnackbar
         open={snackbar !== null}
         message={snackbar?.message ?? ""}

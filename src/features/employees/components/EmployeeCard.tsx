@@ -1,3 +1,4 @@
+import DeleteForeverOutlinedIcon from "@mui/icons-material/DeleteForeverOutlined";
 import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -11,9 +12,10 @@ interface EmployeeCardProps {
   onEdit: (employee: Employee) => void;
   onDeactivate: (employee: Employee) => void;
   onActivate: (employee: Employee) => void;
+  onPermanentDelete?: (employee: Employee) => void;
 }
 
-export function EmployeeCard({ employee, onEdit, onDeactivate, onActivate }: EmployeeCardProps) {
+export function EmployeeCard({ employee, onEdit, onDeactivate, onActivate, onPermanentDelete }: EmployeeCardProps) {
   const fullName = `${employee.firstName} ${employee.lastName}`;
 
   return (
@@ -50,7 +52,12 @@ export function EmployeeCard({ employee, onEdit, onDeactivate, onActivate }: Emp
             </Box>
           </Box>
         </Stack>
-        <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end", mt: 1.5 }}>
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          sx={{ justifyContent: "flex-end", flexWrap: "wrap", mt: 1.5 }}
+        >
           {employee.active ? (
             <>
               <IconButton aria-label={`Editar ${fullName}`} onClick={() => onEdit(employee)} size="small">
@@ -73,6 +80,17 @@ export function EmployeeCard({ employee, onEdit, onDeactivate, onActivate }: Emp
               onClick={() => onActivate(employee)}
             >
               Activar
+            </Button>
+          )}
+          {onPermanentDelete && !employee.active && (
+            <Button
+              size="small"
+              color="error"
+              startIcon={<DeleteForeverOutlinedIcon fontSize="small" />}
+              aria-label={`Eliminar definitivamente ${fullName}`}
+              onClick={() => onPermanentDelete(employee)}
+            >
+              Eliminar definitivamente
             </Button>
           )}
         </Stack>

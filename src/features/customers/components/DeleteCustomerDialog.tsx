@@ -35,7 +35,7 @@ export function DeleteCustomerDialog({
 
     deleteMutation.mutate(customer.id, {
       onSuccess: () => {
-        onSuccess(`Cliente "${customerName}" eliminado correctamente.`);
+        onSuccess(`Cliente "${customerName}" desactivado correctamente.`);
         onClose();
       },
     });
@@ -44,13 +44,13 @@ export function DeleteCustomerDialog({
   return (
     <ConfirmDialog
       open={customer !== null}
-      title="Eliminar cliente"
+      title="Desactivar cliente"
       description={
         customer
-          ? `¿Deseás eliminar al cliente "${customerName}"? Dejará de aparecer en los listados, no se eliminará físicamente su historial y no estará disponible para nuevas operaciones.`
+          ? `¿Deseás desactivar al cliente "${customerName}"? Dejará de aparecer en los listados, no se eliminará físicamente su historial y no estará disponible para nuevas operaciones.`
           : ""
       }
-      confirmLabel="Eliminar"
+      confirmLabel="Desactivar"
       cancelLabel="Cancelar"
       confirmColor="error"
       loading={deleteMutation.isPending}

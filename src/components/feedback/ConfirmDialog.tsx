@@ -44,7 +44,7 @@ export function ConfirmDialog({
     >
       <DialogTitle id="confirm-dialog-title">{title}</DialogTitle>
       <DialogContent>
-        <DialogContentText sx={{ mb: error ? 2 : 0 }}>
+        <DialogContentText sx={{ mb: error ? 2 : 0, whiteSpace: "pre-line" }}>
           {description}
         </DialogContentText>
         {error && (

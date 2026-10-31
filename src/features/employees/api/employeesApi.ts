@@ -54,3 +54,8 @@ export async function deactivateEmployee(id: number): Promise<void> {
 export async function activateEmployee(id: number): Promise<void> {
   await apiClient.patch(`/api/employees/${id}/activate`);
 }
+
+/** Eliminación definitiva (irreversible). */
+export async function permanentDeleteEmployee(id: number): Promise<void> {
+  await apiClient.delete(`/api/employees/${id}/permanent`);
+}

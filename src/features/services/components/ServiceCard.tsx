@@ -1,3 +1,4 @@
+import DeleteForeverOutlinedIcon from "@mui/icons-material/DeleteForeverOutlined";
 import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -10,9 +11,10 @@ interface ServiceCardProps {
   onEdit: (service: Service) => void;
   onDeactivate: (service: Service) => void;
   onActivate: (service: Service) => void;
+  onPermanentDelete?: (service: Service) => void;
 }
 
-export function ServiceCard({ service, onEdit, onDeactivate, onActivate }: ServiceCardProps) {
+export function ServiceCard({ service, onEdit, onDeactivate, onActivate, onPermanentDelete }: ServiceCardProps) {
   return (
     <Card component="li" variant="outlined" sx={{ borderRadius: 2, listStyle: "none" }}>
       <CardContent>
@@ -56,7 +58,12 @@ export function ServiceCard({ service, onEdit, onDeactivate, onActivate }: Servi
             </Typography>
           </Box>
         </Stack>
-        <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end", mt: 1.5 }}>
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          sx={{ justifyContent: "flex-end", flexWrap: "wrap", mt: 1.5 }}
+        >
           {service.active ? (
             <>
               <IconButton aria-label={`Editar ${service.name}`} onClick={() => onEdit(service)} size="small">
@@ -79,6 +86,17 @@ export function ServiceCard({ service, onEdit, onDeactivate, onActivate }: Servi
               onClick={() => onActivate(service)}
             >
               Activar
+            </Button>
+          )}
+          {onPermanentDelete && !service.active && (
+            <Button
+              size="small"
+              color="error"
+              startIcon={<DeleteForeverOutlinedIcon fontSize="small" />}
+              aria-label={`Eliminar definitivamente ${service.name}`}
+              onClick={() => onPermanentDelete(service)}
+            >
+              Eliminar definitivamente
             </Button>
           )}
         </Stack>

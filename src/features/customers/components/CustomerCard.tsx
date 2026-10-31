@@ -1,6 +1,7 @@
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
+import DeleteForeverOutlinedIcon from "@mui/icons-material/DeleteForeverOutlined";
+import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import { Avatar, Box, Card, CardContent, Chip, IconButton, Stack, Typography } from "@mui/material";
+import { Avatar, Box, Card, CardContent, Chip, Button, IconButton, Stack, Typography } from "@mui/material";
 import { getInitials } from "../../../utils/getInitials";
 import type { Customer } from "../types/customer.types";
 
@@ -8,9 +9,10 @@ interface CustomerCardProps {
   customer: Customer;
   onEdit: (customer: Customer) => void;
   onDelete: (customer: Customer) => void;
+  onPermanentDelete?: (customer: Customer) => void;
 }
 
-export function CustomerCard({ customer, onEdit, onDelete }: CustomerCardProps) {
+export function CustomerCard({ customer, onEdit, onDelete, onPermanentDelete }: CustomerCardProps) {
   const fullName = `${customer.firstName ?? ""} ${customer.lastName ?? ""}`.trim();
 
   return (
@@ -59,17 +61,33 @@ export function CustomerCard({ customer, onEdit, onDelete }: CustomerCardProps) 
             )}
           </Box>
         </Stack>
-        <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end", mt: 1.5 }}>
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          sx={{ justifyContent: "flex-end", flexWrap: "wrap", mt: 1.5 }}
+        >
           <IconButton aria-label={`Editar ${fullName}`} onClick={() => onEdit(customer)} size="small">
             <EditOutlinedIcon fontSize="small" />
           </IconButton>
           <IconButton
-            aria-label={`Eliminar ${fullName}`}
+            aria-label={`Desactivar ${fullName}`}
             onClick={() => onDelete(customer)}
             size="small"
           >
-            <DeleteOutlineIcon fontSize="small" />
+            <BlockOutlinedIcon fontSize="small" />
           </IconButton>
+          {onPermanentDelete && true && (
+            <Button
+              size="small"
+              color="error"
+              startIcon={<DeleteForeverOutlinedIcon fontSize="small" />}
+              aria-label={`Eliminar definitivamente ${fullName}`}
+              onClick={() => onPermanentDelete(customer)}
+            >
+              Eliminar definitivamente
+            </Button>
+          )}
         </Stack>
       </CardContent>
     </Card>
