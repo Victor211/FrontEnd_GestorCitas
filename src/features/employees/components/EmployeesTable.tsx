@@ -1,4 +1,5 @@
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
+import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import {
   Avatar,
@@ -21,10 +22,11 @@ import { EmployeeServicesChips } from "./EmployeeServicesChips";
 interface EmployeesTableProps {
   employees: Employee[];
   onEdit: (employee: Employee) => void;
-  onDelete: (employee: Employee) => void;
+  onDeactivate: (employee: Employee) => void;
+  onActivate: (employee: Employee) => void;
 }
 
-export function EmployeesTable({ employees, onEdit, onDelete }: EmployeesTableProps) {
+export function EmployeesTable({ employees, onEdit, onDeactivate, onActivate }: EmployeesTableProps) {
   return (
     <TableContainer sx={{ display: { xs: "none", md: "block" } }}>
       <Table aria-label="Empleados">
@@ -79,24 +81,39 @@ export function EmployeesTable({ employees, onEdit, onDelete }: EmployeesTablePr
                   />
                 </TableCell>
                 <TableCell align="right">
-                  <Tooltip title="Editar empleado">
-                    <IconButton
-                      aria-label={`Editar ${fullName}`}
-                      onClick={() => onEdit(employee)}
-                      size="small"
-                    >
-                      <EditOutlinedIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Eliminar empleado">
-                    <IconButton
-                      aria-label={`Eliminar ${fullName}`}
-                      onClick={() => onDelete(employee)}
-                      size="small"
-                    >
-                      <DeleteOutlineIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
+                  {employee.active ? (
+                      <>
+                        <Tooltip title="Editar empleado">
+                          <IconButton
+                            aria-label={`Editar ${fullName}`}
+                            onClick={() => onEdit(employee)}
+                            size="small"
+                          >
+                            <EditOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Desactivar empleado">
+                          <IconButton
+                            aria-label={`Desactivar ${fullName}`}
+                            onClick={() => onDeactivate(employee)}
+                            size="small"
+                          >
+                            <BlockOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </>
+                    ) : (
+                      <Tooltip title="Activar empleado">
+                        <IconButton
+                          aria-label={`Activar ${fullName}`}
+                          onClick={() => onActivate(employee)}
+                          size="small"
+                          color="success"
+                        >
+                          <CheckCircleOutlineIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                 </TableCell>
               </TableRow>
             );

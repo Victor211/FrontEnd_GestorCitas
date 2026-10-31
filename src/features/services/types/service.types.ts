@@ -1,3 +1,5 @@
+import type { ActiveQueryParam } from "../../../utils/statusFilter";
+
 export interface Service {
   id: number;
   name: string;
@@ -21,8 +23,11 @@ export interface CreateServiceRequest {
 
 export type UpdateServiceRequest = CreateServiceRequest;
 
+
 export interface ServicesListParams {
   page: number;
   size: number;
   name?: string;
+  /** Omitido: solo activos (selectores). "all"/"true"/"false" para pantallas administrativas. */
+  active?: ActiveQueryParam;
 }

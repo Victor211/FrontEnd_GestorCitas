@@ -1,3 +1,5 @@
+import type { ActiveQueryParam } from "../../../utils/statusFilter";
+
 export interface EmployeeServiceSummary {
   id: number;
   name: string;
@@ -35,4 +37,6 @@ export interface EmployeeFilters {
   page: number;
   size: number;
   name?: string;
+  /** Omitido: solo activos (selectores). "all"/"true"/"false" para pantallas administrativas. */
+  active?: ActiveQueryParam;
 }

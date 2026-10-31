@@ -6,7 +6,8 @@ import { EmptyState } from "../../../components/common/EmptyState";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { ErrorAlert } from "../../../components/feedback/ErrorAlert";
 import { SuccessSnackbar } from "../../../components/feedback/SuccessSnackbar";
-import { DeleteServiceDialog } from "../components/DeleteServiceDialog";
+import { DEFAULT_STATUS_FILTER, toActiveParam, type StatusFilter } from "../../../utils/statusFilter";
+import { ServiceStatusDialog, type ServiceStatusTarget } from "../components/ServiceStatusDialog";
 import { ServiceCard } from "../components/ServiceCard";
 import { ServiceDialog } from "../components/ServiceDialog";
 import { ServicesSkeleton } from "../components/ServicesSkeleton";
@@ -32,8 +33,15 @@ export function ServicesPage() {
     open: false,
     service: null,
   });
-  const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
-  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(DEFAULT_STATUS_FILTER);
+  const [statusTarget, setStatusTarget] = useState<ServiceStatusTarget | null>(null);
+  const [snackbar, setSnackbar] = useState<{
+    message: string;
+    severity: "success" | "info";
+  } | null>(null);
+
+  const notify = (message: string, severity: "success" | "info" = "success") =>
+    setSnackbar({ message, severity });
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -48,15 +56,25 @@ export function ServicesPage() {
     () => ({
       page,
       size: pageSize,
+      active: toActiveParam(statusFilter),
       ...(search ? { name: search } : {}),
     }),
-    [page, pageSize, search],
+    [page, pageSize, search, statusFilter],
   );
 
   const servicesQuery = useServices(filters);
   const pageData = servicesQuery.data;
   const isEmpty = servicesQuery.isSuccess && pageData?.content.length === 0;
   const isSearchActive = search !== "";
+  const isStatusFiltered = statusFilter !== DEFAULT_STATUS_FILTER;
+  const hasActiveFilters = isSearchActive || isStatusFiltered;
+
+  // Si al cambiar un estado la última página queda vacía, retrocede una página.
+  useEffect(() => {
+    if (isEmpty && page > 0) {
+      setPage((current) => Math.max(0, current - 1));
+    }
+  }, [isEmpty, page]);
 
   const handleClearSearch = () => {
     setSearchInput("");
@@ -64,12 +82,25 @@ export function ServicesPage() {
     setPage(0);
   };
 
+  const handleStatusFilterChange = (value: StatusFilter) => {
+    setStatusFilter(value);
+    setPage(0);
+  };
+
+  const handleClearFilters = () => {
+    handleClearSearch();
+    setStatusFilter(DEFAULT_STATUS_FILTER);
+  };
+
   const handleCreateClick = () => setDialogState({ open: true, service: null });
   const handleEditClick = (service: Service) => setDialogState({ open: true, service });
   const handleDialogClose = () => setDialogState({ open: false, service: null });
 
-  const handleDeleteClick = (service: Service) => setDeleteTarget(service);
-  const handleDeleteClose = () => setDeleteTarget(null);
+  const handleDeactivateClick = (service: Service) =>
+    setStatusTarget({ service, action: "deactivate" });
+  const handleActivateClick = (service: Service) =>
+    setStatusTarget({ service, action: "activate" });
+  const handleStatusClose = () => setStatusTarget(null);
 
   return (
     <>
@@ -81,6 +112,8 @@ export function ServicesPage() {
         value={searchInput}
         onChange={setSearchInput}
         onClear={handleClearSearch}
+        statusFilter={statusFilter}
+        onStatusFilterChange={handleStatusFilterChange}
         onCreateClick={handleCreateClick}
       />
 
@@ -99,20 +132,20 @@ export function ServicesPage() {
         isEmpty ? (
           <EmptyState
             icon={
-              isSearchActive ? (
+              hasActiveFilters ? (
                 <SearchOffOutlinedIcon sx={{ fontSize: 36 }} color="disabled" />
               ) : (
                 <DesignServicesOutlinedIcon sx={{ fontSize: 36 }} color="disabled" />
               )
             }
-            title={isSearchActive ? "No se encontraron servicios" : "No hay servicios registrados"}
+            title={hasActiveFilters ? "No se encontraron servicios" : "No hay servicios registrados"}
             description={
-              isSearchActive
-                ? "Probá con otro nombre de búsqueda."
+              hasActiveFilters
+                ? "Probá con otro nombre de búsqueda o cambiá el filtro de estado."
                 : "Todavía no cargaste servicios para tu negocio."
             }
-            actionLabel={isSearchActive ? "Limpiar búsqueda" : "Crear primer servicio"}
-            onAction={isSearchActive ? handleClearSearch : handleCreateClick}
+            actionLabel={hasActiveFilters ? "Limpiar filtros" : "Crear primer servicio"}
+            onAction={hasActiveFilters ? handleClearFilters : handleCreateClick}
           />
         ) : (
           <Paper
@@ -128,7 +161,8 @@ export function ServicesPage() {
             <ServicesTable
               services={pageData.content}
               onEdit={handleEditClick}
-              onDelete={handleDeleteClick}
+              onDeactivate={handleDeactivateClick}
+              onActivate={handleActivateClick}
             />
             <Stack
               component="ul"
@@ -140,7 +174,8 @@ export function ServicesPage() {
                   key={service.id}
                   service={service}
                   onEdit={handleEditClick}
-                  onDelete={handleDeleteClick}
+                  onDeactivate={handleDeactivateClick}
+                  onActivate={handleActivateClick}
                 />
               ))}
             </Stack>
@@ -168,17 +203,14 @@ export function ServicesPage() {
         open={dialogState.open}
         service={dialogState.service}
         onClose={handleDialogClose}
-        onSuccess={setSnackbarMessage}
+        onSuccess={(message) => notify(message)}
       />
-      <DeleteServiceDialog
-        service={deleteTarget}
-        onClose={handleDeleteClose}
-        onSuccess={setSnackbarMessage}
-      />
+      <ServiceStatusDialog target={statusTarget} onClose={handleStatusClose} onNotify={notify} />
       <SuccessSnackbar
-        open={snackbarMessage !== null}
-        message={snackbarMessage ?? ""}
-        onClose={() => setSnackbarMessage(null)}
+        open={snackbar !== null}
+        message={snackbar?.message ?? ""}
+        severity={snackbar?.severity}
+        onClose={() => setSnackbar(null)}
       />
     </>
   );

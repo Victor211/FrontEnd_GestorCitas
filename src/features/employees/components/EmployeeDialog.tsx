@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { FormErrorAlert } from "../../../components/feedback/FormErrorAlert";
 import { getApiErrorMessage } from "../../../utils/getApiErrorMessage";
+import { isConflictError } from "../../../utils/statusMutationError";
 import { useCreateEmployee } from "../hooks/useCreateEmployee";
 import { useUpdateEmployee } from "../hooks/useUpdateEmployee";
 import {
@@ -41,6 +42,15 @@ export function EmployeeDialog({ open, employee, onClose, onSuccess }: EmployeeD
   const createMutation = useCreateEmployee();
   const updateMutation = useUpdateEmployee();
   const mutation = isEditMode ? updateMutation : createMutation;
+
+  // En un 409 por datos duplicados puede existir un registro inactivo con los mismos datos:
+  // se orienta al usuario sin afirmarlo, porque la API no lo informa.
+  const getMutationErrorMessage = (error: unknown) => {
+    const message = getApiErrorMessage(error);
+    return isConflictError(error)
+      ? `${message} Revisá también el filtro "Inactivos" de la lista: si ya existe un registro inactivo, podés activarlo desde allí.`
+      : message;
+  };
 
   const handleClose = () => {
     if (mutation.isPending) {
@@ -101,7 +111,7 @@ export function EmployeeDialog({ open, employee, onClose, onSuccess }: EmployeeD
       <DialogContent dividers>
         <Stack spacing={2}>
           <FormErrorAlert
-            message={mutation.isError ? getApiErrorMessage(mutation.error) : null}
+            message={mutation.isError ? getMutationErrorMessage(mutation.error) : null}
           />
           <EmployeeForm
             key={employee ? `edit-${employee.id}` : "create"}

@@ -1,16 +1,18 @@
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
+import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import { Box, Card, CardContent, Chip, IconButton, Stack, Typography } from "@mui/material";
+import { Box, Button, Card, CardContent, Chip, IconButton, Stack, Typography } from "@mui/material";
 import type { Service } from "../types/service.types";
 import { formatServiceDuration, formatServicePrice } from "../utils/formatters";
 
 interface ServiceCardProps {
   service: Service;
   onEdit: (service: Service) => void;
-  onDelete: (service: Service) => void;
+  onDeactivate: (service: Service) => void;
+  onActivate: (service: Service) => void;
 }
 
-export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
+export function ServiceCard({ service, onEdit, onDeactivate, onActivate }: ServiceCardProps) {
   return (
     <Card component="li" variant="outlined" sx={{ borderRadius: 2, listStyle: "none" }}>
       <CardContent>
@@ -55,12 +57,30 @@ export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
           </Box>
         </Stack>
         <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end", mt: 1.5 }}>
-          <IconButton aria-label={`Editar ${service.name}`} onClick={() => onEdit(service)} size="small">
-            <EditOutlinedIcon fontSize="small" />
-          </IconButton>
-          <IconButton aria-label={`Eliminar ${service.name}`} onClick={() => onDelete(service)} size="small">
-            <DeleteOutlineIcon fontSize="small" />
-          </IconButton>
+          {service.active ? (
+            <>
+              <IconButton aria-label={`Editar ${service.name}`} onClick={() => onEdit(service)} size="small">
+                <EditOutlinedIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                aria-label={`Desactivar ${service.name}`}
+                onClick={() => onDeactivate(service)}
+                size="small"
+              >
+                <BlockOutlinedIcon fontSize="small" />
+              </IconButton>
+            </>
+          ) : (
+            <Button
+              size="small"
+              color="success"
+              startIcon={<CheckCircleOutlineIcon fontSize="small" />}
+              aria-label={`Activar ${service.name}`}
+              onClick={() => onActivate(service)}
+            >
+              Activar
+            </Button>
+          )}
         </Stack>
       </CardContent>
     </Card>

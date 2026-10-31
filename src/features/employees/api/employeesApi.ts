@@ -46,6 +46,11 @@ export async function updateEmployee(
   return data.data;
 }
 
-export async function deleteEmployee(id: number): Promise<void> {
+/** Desactivación lógica (DELETE). */
+export async function deactivateEmployee(id: number): Promise<void> {
   await apiClient.delete(`/api/employees/${id}`);
+}
+
+export async function activateEmployee(id: number): Promise<void> {
+  await apiClient.patch(`/api/employees/${id}/activate`);
 }

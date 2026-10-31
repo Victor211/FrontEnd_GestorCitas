@@ -1,4 +1,5 @@
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
+import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import {
   Box,
@@ -19,10 +20,11 @@ import { formatServiceDuration, formatServicePrice } from "../utils/formatters";
 interface ServicesTableProps {
   services: Service[];
   onEdit: (service: Service) => void;
-  onDelete: (service: Service) => void;
+  onDeactivate: (service: Service) => void;
+  onActivate: (service: Service) => void;
 }
 
-export function ServicesTable({ services, onEdit, onDelete }: ServicesTableProps) {
+export function ServicesTable({ services, onEdit, onDeactivate, onActivate }: ServicesTableProps) {
   return (
     <TableContainer sx={{ display: { xs: "none", md: "block" } }}>
       <Table aria-label="Servicios">
@@ -75,24 +77,39 @@ export function ServicesTable({ services, onEdit, onDelete }: ServicesTableProps
                 />
               </TableCell>
               <TableCell align="right">
-                <Tooltip title="Editar servicio">
-                  <IconButton
-                    aria-label={`Editar ${service.name}`}
-                    onClick={() => onEdit(service)}
-                    size="small"
-                  >
-                    <EditOutlinedIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Eliminar servicio">
-                  <IconButton
-                    aria-label={`Eliminar ${service.name}`}
-                    onClick={() => onDelete(service)}
-                    size="small"
-                  >
-                    <DeleteOutlineIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                {service.active ? (
+                    <>
+                      <Tooltip title="Editar servicio">
+                        <IconButton
+                          aria-label={`Editar ${service.name}`}
+                          onClick={() => onEdit(service)}
+                          size="small"
+                        >
+                          <EditOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Desactivar servicio">
+                        <IconButton
+                          aria-label={`Desactivar ${service.name}`}
+                          onClick={() => onDeactivate(service)}
+                          size="small"
+                        >
+                          <BlockOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </>
+                  ) : (
+                    <Tooltip title="Activar servicio">
+                      <IconButton
+                        aria-label={`Activar ${service.name}`}
+                        onClick={() => onActivate(service)}
+                        size="small"
+                        color="success"
+                      >
+                        <CheckCircleOutlineIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
               </TableCell>
             </TableRow>
           ))}

@@ -5,8 +5,9 @@ import { useEffect, useMemo, useState } from "react";
 import { EmptyState } from "../../../components/common/EmptyState";
 import { ErrorAlert } from "../../../components/feedback/ErrorAlert";
 import { SuccessSnackbar } from "../../../components/feedback/SuccessSnackbar";
+import { DEFAULT_STATUS_FILTER, toActiveParam, type StatusFilter } from "../../../utils/statusFilter";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { DeleteEmployeeDialog } from "../components/DeleteEmployeeDialog";
+import { EmployeeStatusDialog, type EmployeeStatusTarget } from "../components/EmployeeStatusDialog";
 import { EmployeeCard } from "../components/EmployeeCard";
 import { EmployeeDialog } from "../components/EmployeeDialog";
 import { EmployeesSkeleton } from "../components/EmployeesSkeleton";
@@ -32,8 +33,15 @@ export function EmployeesPage() {
     open: false,
     employee: null,
   });
-  const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
-  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(DEFAULT_STATUS_FILTER);
+  const [statusTarget, setStatusTarget] = useState<EmployeeStatusTarget | null>(null);
+  const [snackbar, setSnackbar] = useState<{
+    message: string;
+    severity: "success" | "info";
+  } | null>(null);
+
+  const notify = (message: string, severity: "success" | "info" = "success") =>
+    setSnackbar({ message, severity });
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -48,15 +56,25 @@ export function EmployeesPage() {
     () => ({
       page,
       size: pageSize,
+      active: toActiveParam(statusFilter),
       ...(search ? { name: search } : {}),
     }),
-    [page, pageSize, search],
+    [page, pageSize, search, statusFilter],
   );
 
   const employeesQuery = useEmployees(filters);
   const pageData = employeesQuery.data;
   const isEmpty = employeesQuery.isSuccess && pageData?.content.length === 0;
   const isSearchActive = search !== "";
+  const isStatusFiltered = statusFilter !== DEFAULT_STATUS_FILTER;
+  const hasActiveFilters = isSearchActive || isStatusFiltered;
+
+  // Si al cambiar un estado la última página queda vacía, retrocede una página.
+  useEffect(() => {
+    if (isEmpty && page > 0) {
+      setPage((current) => Math.max(0, current - 1));
+    }
+  }, [isEmpty, page]);
 
   const handleClearSearch = () => {
     setSearchInput("");
@@ -64,12 +82,25 @@ export function EmployeesPage() {
     setPage(0);
   };
 
+  const handleStatusFilterChange = (value: StatusFilter) => {
+    setStatusFilter(value);
+    setPage(0);
+  };
+
+  const handleClearFilters = () => {
+    handleClearSearch();
+    setStatusFilter(DEFAULT_STATUS_FILTER);
+  };
+
   const handleCreateClick = () => setDialogState({ open: true, employee: null });
   const handleEditClick = (employee: Employee) => setDialogState({ open: true, employee });
   const handleDialogClose = () => setDialogState({ open: false, employee: null });
 
-  const handleDeleteClick = (employee: Employee) => setDeleteTarget(employee);
-  const handleDeleteClose = () => setDeleteTarget(null);
+  const handleDeactivateClick = (employee: Employee) =>
+    setStatusTarget({ employee, action: "deactivate" });
+  const handleActivateClick = (employee: Employee) =>
+    setStatusTarget({ employee, action: "activate" });
+  const handleStatusClose = () => setStatusTarget(null);
 
   return (
     <>
@@ -81,6 +112,8 @@ export function EmployeesPage() {
         value={searchInput}
         onChange={setSearchInput}
         onClear={handleClearSearch}
+        statusFilter={statusFilter}
+        onStatusFilterChange={handleStatusFilterChange}
         onCreateClick={handleCreateClick}
       />
 
@@ -99,20 +132,20 @@ export function EmployeesPage() {
         isEmpty ? (
           <EmptyState
             icon={
-              isSearchActive ? (
+              hasActiveFilters ? (
                 <SearchOffOutlinedIcon sx={{ fontSize: 36 }} color="disabled" />
               ) : (
                 <BadgeOutlinedIcon sx={{ fontSize: 36 }} color="disabled" />
               )
             }
-            title={isSearchActive ? "No se encontraron empleados" : "No hay empleados registrados"}
+            title={hasActiveFilters ? "No se encontraron empleados" : "No hay empleados registrados"}
             description={
-              isSearchActive
-                ? "Probá con otro nombre de búsqueda."
+              hasActiveFilters
+                ? "Probá con otro nombre de búsqueda o cambiá el filtro de estado."
                 : "Todavía no cargaste empleados para tu negocio."
             }
-            actionLabel={isSearchActive ? "Limpiar búsqueda" : "Crear primer empleado"}
-            onAction={isSearchActive ? handleClearSearch : handleCreateClick}
+            actionLabel={hasActiveFilters ? "Limpiar filtros" : "Crear primer empleado"}
+            onAction={hasActiveFilters ? handleClearFilters : handleCreateClick}
           />
         ) : (
           <Paper
@@ -128,7 +161,8 @@ export function EmployeesPage() {
             <EmployeesTable
               employees={pageData.content}
               onEdit={handleEditClick}
-              onDelete={handleDeleteClick}
+              onDeactivate={handleDeactivateClick}
+              onActivate={handleActivateClick}
             />
             <Stack
               component="ul"
@@ -140,7 +174,8 @@ export function EmployeesPage() {
                   key={employee.id}
                   employee={employee}
                   onEdit={handleEditClick}
-                  onDelete={handleDeleteClick}
+                  onDeactivate={handleDeactivateClick}
+                  onActivate={handleActivateClick}
                 />
               ))}
             </Stack>
@@ -168,17 +203,14 @@ export function EmployeesPage() {
         open={dialogState.open}
         employee={dialogState.employee}
         onClose={handleDialogClose}
-        onSuccess={setSnackbarMessage}
+        onSuccess={(message) => notify(message)}
       />
-      <DeleteEmployeeDialog
-        employee={deleteTarget}
-        onClose={handleDeleteClose}
-        onSuccess={setSnackbarMessage}
-      />
+      <EmployeeStatusDialog target={statusTarget} onClose={handleStatusClose} onNotify={notify} />
       <SuccessSnackbar
-        open={snackbarMessage !== null}
-        message={snackbarMessage ?? ""}
-        onClose={() => setSnackbarMessage(null)}
+        open={snackbar !== null}
+        message={snackbar?.message ?? ""}
+        severity={snackbar?.severity}
+        onClose={() => setSnackbar(null)}
       />
     </>
   );

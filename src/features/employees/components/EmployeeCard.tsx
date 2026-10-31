@@ -1,6 +1,7 @@
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
+import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import { Avatar, Box, Card, CardContent, Chip, IconButton, Stack, Typography } from "@mui/material";
+import { Avatar, Box, Button, Card, CardContent, Chip, IconButton, Stack, Typography } from "@mui/material";
 import { getInitials } from "../../../utils/getInitials";
 import type { Employee } from "../types/employee.types";
 import { EmployeeServicesChips } from "./EmployeeServicesChips";
@@ -8,10 +9,11 @@ import { EmployeeServicesChips } from "./EmployeeServicesChips";
 interface EmployeeCardProps {
   employee: Employee;
   onEdit: (employee: Employee) => void;
-  onDelete: (employee: Employee) => void;
+  onDeactivate: (employee: Employee) => void;
+  onActivate: (employee: Employee) => void;
 }
 
-export function EmployeeCard({ employee, onEdit, onDelete }: EmployeeCardProps) {
+export function EmployeeCard({ employee, onEdit, onDeactivate, onActivate }: EmployeeCardProps) {
   const fullName = `${employee.firstName} ${employee.lastName}`;
 
   return (
@@ -49,16 +51,30 @@ export function EmployeeCard({ employee, onEdit, onDelete }: EmployeeCardProps) 
           </Box>
         </Stack>
         <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end", mt: 1.5 }}>
-          <IconButton aria-label={`Editar ${fullName}`} onClick={() => onEdit(employee)} size="small">
-            <EditOutlinedIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            aria-label={`Eliminar ${fullName}`}
-            onClick={() => onDelete(employee)}
-            size="small"
-          >
-            <DeleteOutlineIcon fontSize="small" />
-          </IconButton>
+          {employee.active ? (
+            <>
+              <IconButton aria-label={`Editar ${fullName}`} onClick={() => onEdit(employee)} size="small">
+                <EditOutlinedIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                aria-label={`Desactivar ${fullName}`}
+                onClick={() => onDeactivate(employee)}
+                size="small"
+              >
+                <BlockOutlinedIcon fontSize="small" />
+              </IconButton>
+            </>
+          ) : (
+            <Button
+              size="small"
+              color="success"
+              startIcon={<CheckCircleOutlineIcon fontSize="small" />}
+              aria-label={`Activar ${fullName}`}
+              onClick={() => onActivate(employee)}
+            >
+              Activar
+            </Button>
+          )}
         </Stack>
       </CardContent>
     </Card>

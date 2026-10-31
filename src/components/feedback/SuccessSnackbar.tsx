@@ -3,10 +3,16 @@ import { Alert, Snackbar } from "@mui/material";
 interface SuccessSnackbarProps {
   open: boolean;
   message: string;
+  severity?: "success" | "info";
   onClose: () => void;
 }
 
-export function SuccessSnackbar({ open, message, onClose }: SuccessSnackbarProps) {
+export function SuccessSnackbar({
+  open,
+  message,
+  severity = "success",
+  onClose,
+}: SuccessSnackbarProps) {
   return (
     <Snackbar
       open={open}
@@ -19,7 +25,7 @@ export function SuccessSnackbar({ open, message, onClose }: SuccessSnackbarProps
       }}
       anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
     >
-      <Alert severity="success" variant="filled" onClose={onClose} sx={{ width: "100%" }}>
+      <Alert severity={severity} variant="filled" onClose={onClose} sx={{ width: "100%" }}>
         {message}
       </Alert>
     </Snackbar>
