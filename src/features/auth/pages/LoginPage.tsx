@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Alert, Button, Link as MuiLink, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Link as MuiLink, Stack, TextField, Typography } from "@mui/material";
 import { useForm } from "react-hook-form";
 import { Link as RouterLink } from "react-router-dom";
 import { FormErrorAlert } from "../../../components/feedback/FormErrorAlert";
@@ -12,6 +12,7 @@ import { AuthCard } from "../components/AuthCard";
 import { useAuth } from "../hooks/useAuth";
 import { useLogin } from "../hooks/useLogin";
 import { loginSchema, type LoginFormValues } from "../schemas/login.schema";
+import { authFieldSx } from "../utils/authFieldStyles";
 import { SESSION_NOTICE_MESSAGES } from "../utils/sessionNotices";
 
 export function LoginPage() {
@@ -34,9 +35,19 @@ export function LoginPage() {
 
   return (
     <AuthLayout
-      title="Iniciar sesión"
-      subtitle="Ingresá tus credenciales para acceder a tu negocio."
-      logo={<AvnexLogo variant="vertical" height={140} />}
+      title="Bienvenido de nuevo"
+      subtitle="Ingresá tus credenciales para continuar."
+      logo={
+        <>
+          {/* Móvil y tablet: logo vertical. Escritorio (panel azul visible): logo horizontal. */}
+          <Box sx={{ display: { xs: "flex", md: "none" } }}>
+            <AvnexLogo variant="vertical" height={120} />
+          </Box>
+          <Box sx={{ display: { xs: "none", md: "flex" }, ml: -2.5 }}>
+            <AvnexLogo variant="horizontal" height={100} />
+          </Box>
+        </>
+      }
     >
       <AuthCard>
         <Stack component="form" onSubmit={onSubmit} noValidate spacing={2}>
@@ -61,6 +72,7 @@ export function LoginPage() {
             helperText={errors.email?.message}
             fullWidth
             required
+            sx={authFieldSx}
           />
           <PasswordField
             {...register("password")}
@@ -70,8 +82,26 @@ export function LoginPage() {
             helperText={errors.password?.message}
             fullWidth
             required
+            sx={authFieldSx}
           />
-          <Button type="submit" variant="contained" size="large" disabled={isBusy}>
+          <Button
+            type="submit"
+            variant="contained"
+            size="large"
+            disabled={isBusy}
+            sx={{
+              minHeight: 48,
+              borderRadius: 3,
+              fontSize: "1rem",
+              "&:hover": { boxShadow: "0 6px 16px rgba(25,118,210,0.35)" },
+              "&:focus-visible": {
+                outline: "3px solid",
+                outlineColor: "primary.light",
+                outlineOffset: 2,
+              },
+              "&.Mui-disabled": { opacity: 0.6 },
+            }}
+          >
             {isBusy ? "Ingresando..." : "Ingresar"}
           </Button>
           {REGISTRATION_ENABLED && (
